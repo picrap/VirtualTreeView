@@ -1,0 +1,103 @@
+﻿<Window x:Class="VirtualTreeViewDemo.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:VirtualTreeViewDemo"
+        xmlns:virtualTreeView="clr-namespace:VirtualTreeView;assembly=VirtualTreeView"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="600" Width="800">
+
+    <Window.Resources>
+        <Style x:Key="Header" TargetType="{x:Type TextBlock}" >
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="Background" Value="DarkGray"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+        <Style x:Key="ColumnHeader" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource Header}" />
+        <Style x:Key="RowHeader" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource Header}" >
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Setter Property="LayoutTransform">
+                <Setter.Value>
+                    <TransformGroup>
+                        <RotateTransform Angle="-90"/>
+                    </TransformGroup>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Column="1" Grid.Row="0" Style="{StaticResource ColumnHeader}" Text="TreeView" />
+        <TextBlock Grid.Column="2" Grid.Row="0" Style="{StaticResource ColumnHeader}" Text="VirtualTreeView" />
+        <TextBlock Grid.Column="0" Grid.Row="1" Style="{StaticResource RowHeader}" Text="Direct content"  />
+        <TextBlock Grid.Column="0" Grid.Row="2" Style="{StaticResource RowHeader}" Text="Data bound" />
+
+        <GridSplitter Grid.Row="0" Grid.Column="2" Grid.RowSpan="3" ResizeDirection="Columns" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="DarkGray" Width="2" />
+        <GridSplitter Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" ResizeDirection="Rows" VerticalAlignment="Top" HorizontalAlignment="Stretch" Background="DarkGray" Height="2" />
+
+        <TreeView Grid.Column="1" Grid.Row="1">
+            <TreeViewItem Header="1">
+                <TreeViewItem Header="1.1"/>
+                <TreeViewItem Header="1.2"/>
+                <TreeViewItem Header="1.3"/>
+                <TreeViewItem Header="1.4">
+                    <TreeViewItem Header="1.4.1"/>
+                    <TreeViewItem Header="1.4.2"/>
+                    <TreeViewItem Header="1.4.3"/>
+                    <TreeViewItem Header="1.4.4"/>
+                    <TreeViewItem Header="1.4.5"/>
+                    <TreeViewItem Header="1.4.6"/>
+                    <TreeViewItem Header="1.4.7"/>
+                    <TreeViewItem Header="1.4.8"/>
+                </TreeViewItem>
+                <TreeViewItem Header="1.5"/>
+                <TreeViewItem Header="1.6"/>
+                <TreeViewItem Header="1.7"/>
+            </TreeViewItem>
+            <TreeViewItem Header="2">
+                <TreeViewItem Header="2.1"/>
+                <TreeViewItem Header="2.2"/>
+            </TreeViewItem>
+        </TreeView>
+
+        <virtualTreeView:VirtualTreeView Grid.Column="2" Grid.Row="1">
+            <TreeViewItem Header="1">
+                <TreeViewItem Header="1.1"/>
+                <TreeViewItem Header="1.2"/>
+                <TreeViewItem Header="1.3"/>
+                <TreeViewItem Header="1.4">
+                    <TreeViewItem Header="1.4.1"/>
+                    <TreeViewItem Header="1.4.2"/>
+                    <TreeViewItem Header="1.4.3"/>
+                    <TreeViewItem Header="1.4.4"/>
+                    <TreeViewItem Header="1.4.5"/>
+                    <TreeViewItem Header="1.4.6"/>
+                    <TreeViewItem Header="1.4.7"/>
+                    <TreeViewItem Header="1.4.8"/>
+                </TreeViewItem>
+                <TreeViewItem Header="1.5"/>
+                <TreeViewItem Header="1.6"/>
+                <TreeViewItem Header="1.7"/>
+            </TreeViewItem>
+            <TreeViewItem Header="2">
+                <TreeViewItem Header="2.1"/>
+                <TreeViewItem Header="2.2"/>
+            </TreeViewItem>
+        </virtualTreeView:VirtualTreeView>
+
+    </Grid>
+</Window>
