@@ -174,20 +174,20 @@ namespace VirtualTreeView
             var item = (VirtualTreeViewItem)d;
             bool isExpanded = (bool)e.NewValue;
 
-            if (!isExpanded)
-            {
-                var parentTreeView = item.ParentTreeView;
-                parentTreeView?.HandleSelectionAndCollapsed(item);
-            }
+            if (isExpanded)
+                item.ParentTreeView?.OnExpanded(item);
+            else
+                item.ParentTreeView?.OnCollapsed(item);
 
             if (isExpanded)
                 item.OnExpanded(new RoutedEventArgs(ExpandedEvent, item));
             else
                 item.OnCollapsed(new RoutedEventArgs(CollapsedEvent, item));
         }
+
         private static void OnIsSelectedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            VirtualTreeViewItem item = (VirtualTreeViewItem)d;
+            var item = (VirtualTreeViewItem)d;
             bool isSelected = (bool)e.NewValue;
 
             item.Select(isSelected);

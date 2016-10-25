@@ -136,42 +136,77 @@ namespace VirtualTreeView
         private void Append(object o) => Add(Items.Count, o);
         private void AppendRange(IList l) => AddRange(Items.Count, l);
 
-        private void Add(int index, object o)
+        private int Add(int index, object o)
         {
+            var count = 1;
             Items.Insert(index, o);
+            o.IfType<VirtualTreeViewItem>(i =>
+            {
+                if (i.IsExpanded)
+                    count += Add(index + 1, i.Items);
+                i.Items.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnItemItemsCollectionChanged(i, args));
+            });
+            return count;
         }
 
-        private void AddRange(int index, IList l)
+        private void OnItemItemsCollectionChanged(VirtualTreeViewItem item, NotifyCollectionChangedEventArgs e)
         {
+            if (!item.IsExpanded)
+                return;
+            switch (e.Action)
+            {
+                case NotifyCollectionChangedAction.Add:
+                    AddRange(GetInsertIndex(item, e.NewStartingIndex), e.NewItems);
+                    break;
+                case NotifyCollectionChangedAction.Remove:
+                    break;
+                case NotifyCollectionChangedAction.Replace:
+                    break;
+                case NotifyCollectionChangedAction.Move:
+                    break;
+                case NotifyCollectionChangedAction.Reset:
+                    AddRange(GetItemIndex(item) + 1, item.Items);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        private int AddRange(int index, IList l)
+        {
+            var startIndex = index;
             foreach (var i in l)
-                Items.Insert(index++, i);
+                index += Add(index, i);
+            return index - startIndex;
         }
-        internal void HandleSelectionAndCollapsed(VirtualTreeViewItem collapsed)
+
+        internal void OnExpanded(VirtualTreeViewItem item)
         {
-            //if ((_selectedContainer != null) && (_selectedContainer != collapsed))
-            //{
-            //    // Check if current selection is under the collapsed element
-            //    TreeViewItem current = _selectedContainer;
-            //    do
-            //    {
-            //        current = current.ParentTreeViewItem;
-            //        if (current == collapsed)
-            //        {
-            //            TreeViewItem oldContainer = _selectedContainer;
+            var itemIndex = GetItemIndex(item);
+            AddRange(itemIndex, item.Items);
+        }
 
-            //            ChangeSelection(collapsed.ParentItemsControl.ItemContainerGenerator.ItemFromContainer(collapsed), collapsed, true);
+        internal void OnCollapsed(VirtualTreeViewItem item)
+        {
+        }
 
-            //            if (oldContainer.IsKeyboardFocusWithin)
-            //            {
-            //                // If the oldContainer had focus then move focus to the newContainer instead
-            //                _selectedContainer.Focus();
-            //            }
+        private int GetInsertIndex(VirtualTreeViewItem item, int childIndex)
+        {
+            return GetLastChildIndex(item.Items[childIndex]);
+        }
 
-            //            break;
-            //        }
-            //    }
-            //    while (current != null);
-            //}
+        private int GetLastChildIndex(object o)
+        {
+            var item = o as VirtualTreeViewItem;
+            if (item == null || item.Items.Count == 0 || !item.IsExpanded)
+                return GetItemIndex(o);
+
+            return GetLastChildIndex(item.Items[item.Items.Count - 1]);
+        }
+
+        private int GetItemIndex(object item)
+        {
+            return Items.IndexOf(item);
         }
 
         private VirtualTreeViewItem _selectedContainer;

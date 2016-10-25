@@ -68,7 +68,7 @@
                 <TreeViewItem Header="1.6"/>
                 <TreeViewItem Header="1.7"/>
             </TreeViewItem>
-            <TreeViewItem Header="2">
+            <TreeViewItem Header="2" IsExpanded="True">
                 <TreeViewItem Header="2.1"/>
                 <TreeViewItem Header="2.2"/>
             </TreeViewItem>
@@ -93,7 +93,7 @@
                 <v:VirtualTreeViewItem Header="1.6"/>
                 <v:VirtualTreeViewItem Header="1.7"/>
             </v:VirtualTreeViewItem>
-            <v:VirtualTreeViewItem Header="2">
+            <v:VirtualTreeViewItem Header="2" IsExpanded="True">
                 <v:VirtualTreeViewItem Header="2.1"/>
                 <v:VirtualTreeViewItem Header="2.2"/>
             </v:VirtualTreeViewItem>
