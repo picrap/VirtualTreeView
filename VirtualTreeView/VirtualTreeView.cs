@@ -5,18 +5,13 @@ namespace VirtualTreeView
 {
     using System;
     using System.Collections;
-    using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
     using System.ComponentModel;
-    using System.Linq;
     using System.Windows;
-    using System.Windows.Automation.Peers;
     using System.Windows.Controls;
-    using System.Windows.Data;
     using System.Windows.Markup;
-    using MS.Internal;
-    using MS.Utility;
+    using Collection;
     using Reflection;
 
     [StyleTypedProperty(Property = nameof(ItemContainerStyle), StyleTargetType = typeof(TreeViewItem))]
@@ -78,6 +73,7 @@ namespace VirtualTreeView
 
         public VirtualTreeView()
         {
+            HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentItemsControl = this)));
             HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsCollectionChanged);
         }
 
@@ -184,7 +180,7 @@ namespace VirtualTreeView
         internal void OnExpanded(VirtualTreeViewItem item)
         {
             var itemIndex = GetItemIndex(item);
-            AddRange(itemIndex, item.Items);
+            AddRange(itemIndex + 1, item.Items);
         }
 
         internal void OnCollapsed(VirtualTreeViewItem item)

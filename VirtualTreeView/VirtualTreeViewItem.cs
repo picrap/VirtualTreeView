@@ -3,10 +3,15 @@
 
 namespace VirtualTreeView
 {
+    using System;
+    using System.Collections.Specialized;
     using System.ComponentModel;
+    using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
+    using Collection;
     using MS.Internal.Controls;
+    using Reflection;
 
     public class VirtualTreeViewItem : HeaderedItemsControl
     {
@@ -40,7 +45,7 @@ namespace VirtualTreeView
         /// <summary>
         ///     Returns the immediate parent ItemsControl.
         /// </summary>
-        private ItemsControl ParentItemsControl => ItemsControlFromItemContainer(this);
+        internal ItemsControl ParentItemsControl { get; set; }
 
         /// <summary>
         ///     Walks up the parent chain of TreeViewItems to the top TreeView.
@@ -49,11 +54,14 @@ namespace VirtualTreeView
         {
             get
             {
-                for (var parent = ParentItemsControl; parent != null; parent = ItemsControlFromItemContainer(parent))
+                for (var itemControl = ParentItemsControl; itemControl != null;)
                 {
-                    var virtualTreeView = parent as VirtualTreeView;
-                    if (virtualTreeView != null)
-                        return virtualTreeView;
+                    if (itemControl is VirtualTreeView)
+                        return (VirtualTreeView)itemControl;
+                    var treeViewItem = itemControl as VirtualTreeViewItem;
+                    if (treeViewItem == null)
+                        return null;
+                    itemControl = treeViewItem.ParentItemsControl;
                 }
 
                 return null;
@@ -167,6 +175,12 @@ namespace VirtualTreeView
         static VirtualTreeViewItem()
         {
             DefaultStyleKeyProperty.OverrideMetadata(typeof(VirtualTreeViewItem), new FrameworkPropertyMetadata(typeof(VirtualTreeViewItem)));
+        }
+
+        public VirtualTreeViewItem()
+        {
+            INotifyCollectionChanged notifyCollectionChanged = Items;
+            notifyCollectionChanged.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentItemsControl = this));
         }
 
         private static void OnIsExpandedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)

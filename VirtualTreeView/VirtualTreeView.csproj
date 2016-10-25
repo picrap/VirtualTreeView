@@ -43,6 +43,7 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Collection\NotifyCollectionChangedExtensions.cs" />
     <Compile Include="Reflection\ObjectExtensions.cs" />
     <Compile Include="TreeViewItemCollection.cs" />
     <Compile Include="VirtualTreeViewItemHolder.cs" />
