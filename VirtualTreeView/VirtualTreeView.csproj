@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="Reflection\ObjectExtensions.cs" />
     <Compile Include="TreeViewItemCollection.cs" />
+    <Compile Include="VirtualTreeViewItemHolder.cs" />
     <Compile Include="VirtualTreeViewItem.cs" />
     <Page Include="Themes\Generic.xaml">
       <Generator>MSBuild:Compile</Generator>

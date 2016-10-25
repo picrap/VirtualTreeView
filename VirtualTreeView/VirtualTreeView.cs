@@ -9,6 +9,7 @@ namespace VirtualTreeView
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
     using System.ComponentModel;
+    using System.Linq;
     using System.Windows;
     using System.Windows.Automation.Peers;
     using System.Windows.Controls;
@@ -139,7 +140,7 @@ namespace VirtualTreeView
         private int Add(int index, object o)
         {
             var count = 1;
-            Items.Insert(index, o);
+            Items.Insert(index, new VirtualTreeViewItemHolder(o));
             o.IfType<VirtualTreeViewItem>(i =>
             {
                 if (i.IsExpanded)
@@ -206,7 +207,14 @@ namespace VirtualTreeView
 
         private int GetItemIndex(object item)
         {
-            return Items.IndexOf(item);
+            //return Items.IndexOf(item);
+            for (int index = 0; index < Items.Count; index++)
+            {
+                var indexedItem = (VirtualTreeViewItemHolder)Items[index];
+                if (ReferenceEquals(indexedItem.Content, item))
+                    return index;
+            }
+            return -1;
         }
 
         private VirtualTreeViewItem _selectedContainer;
