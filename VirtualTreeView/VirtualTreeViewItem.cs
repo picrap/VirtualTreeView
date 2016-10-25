@@ -4,27 +4,27 @@
 namespace VirtualTreeView
 {
     using System.ComponentModel;
-    using System.Runtime.CompilerServices;
     using System.Windows;
     using System.Windows.Controls;
+    using MS.Internal.Controls;
 
     public class VirtualTreeViewItem : HeaderedItemsControl
     {
         public static readonly DependencyProperty IsExpandedProperty = DependencyProperty.Register(
-            "IsExpanded", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool)));
+            "IsExpanded", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool), OnIsExpandedChanged));
 
         public bool IsExpanded
         {
-            get { return (bool) GetValue(IsExpandedProperty); }
+            get { return (bool)GetValue(IsExpandedProperty); }
             set { SetValue(IsExpandedProperty, value); }
         }
 
         public static readonly DependencyProperty IsSelectedProperty = DependencyProperty.Register(
-            "IsSelected", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool)));
+            "IsSelected", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool), OnIsSelectedChanged));
 
         public bool IsSelected
         {
-            get { return (bool) GetValue(IsSelectedProperty); }
+            get { return (bool)GetValue(IsSelectedProperty); }
             set { SetValue(IsSelectedProperty, value); }
         }
 
@@ -33,13 +33,212 @@ namespace VirtualTreeView
 
         public bool IsSelectionActive
         {
-            get { return (bool) GetValue(IsSelectionActiveProperty); }
+            get { return (bool)GetValue(IsSelectionActiveProperty); }
             set { SetValue(IsSelectionActiveProperty, value); }
+        }
+
+        /// <summary>
+        ///     Returns the immediate parent ItemsControl.
+        /// </summary>
+        private ItemsControl ParentItemsControl => ItemsControlFromItemContainer(this);
+
+        /// <summary>
+        ///     Walks up the parent chain of TreeViewItems to the top TreeView.
+        /// </summary>
+        private VirtualTreeView ParentTreeView
+        {
+            get
+            {
+                for (var parent = ParentItemsControl; parent != null; parent = ItemsControlFromItemContainer(parent))
+                {
+                    var virtualTreeView = parent as VirtualTreeView;
+                    if (virtualTreeView != null)
+                        return virtualTreeView;
+                }
+
+                return null;
+            }
+        }
+        /// <summary>
+        ///     Returns the immediate parent VirtualTreeViewItem. Null if the parent is a TreeView.
+        /// </summary>
+        internal VirtualTreeViewItem ParentTreeViewItem => ParentItemsControl as VirtualTreeViewItem;
+
+        /// <summary>
+        ///     Event fired when <see cref="IsExpanded"/> becomes true.
+        /// </summary>
+        public static readonly RoutedEvent ExpandedEvent = EventManager.RegisterRoutedEvent("Expanded", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(VirtualTreeViewItem));
+
+        /// <summary>
+        ///     Event fired when <see cref="IsExpanded"/> becomes true.
+        /// </summary>
+        [Category("Behavior")]
+        public event RoutedEventHandler Expanded
+        {
+            add { AddHandler(ExpandedEvent, value); }
+            remove { RemoveHandler(ExpandedEvent, value); }
+        }
+
+        /// <summary>
+        ///     Called when <see cref="IsExpanded"/> becomes true.
+        ///     Default implementation fires the <see cref="Expanded"/> event.
+        /// </summary>
+        /// <param name="e">Event arguments.</param>
+        protected virtual void OnExpanded(RoutedEventArgs e)
+        {
+            RaiseEvent(e);
+        }
+
+        /// <summary>
+        ///     Event fired when <see cref="IsExpanded"/> becomes false.
+        /// </summary>
+        public static readonly RoutedEvent CollapsedEvent = EventManager.RegisterRoutedEvent("Collapsed", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(VirtualTreeViewItem));
+
+        /// <summary>
+        ///     Event fired when <see cref="IsExpanded"/> becomes false.
+        /// </summary>
+        [Category("Behavior")]
+        public event RoutedEventHandler Collapsed
+        {
+            add { AddHandler(CollapsedEvent, value); }
+            remove { RemoveHandler(CollapsedEvent, value); }
+        }
+
+        /// <summary>
+        ///     Called when <see cref="IsExpanded"/> becomes false.
+        ///     Default implementation fires the <see cref="Collapsed"/> event.
+        /// </summary>
+        /// <param name="e">Event arguments.</param>
+        protected virtual void OnCollapsed(RoutedEventArgs e)
+        {
+            RaiseEvent(e);
+        }
+
+        /// <summary>
+        ///     Event fired when <see cref="IsSelected"/> becomes true.
+        /// </summary>
+        public static readonly RoutedEvent SelectedEvent = EventManager.RegisterRoutedEvent("Selected", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(VirtualTreeViewItem));
+
+        /// <summary>
+        ///     Event fired when <see cref="IsSelected"/> becomes true.
+        /// </summary>
+        [Category("Behavior")]
+        public event RoutedEventHandler Selected
+        {
+            add { AddHandler(SelectedEvent, value); }
+            remove { RemoveHandler(SelectedEvent, value); }
+        }
+
+        /// <summary>
+        ///     Called when <see cref="IsSelected"/> becomes true.
+        ///     Default implementation fires the <see cref="Selected"/> event.
+        /// </summary>
+        /// <param name="e">Event arguments.</param>
+        protected virtual void OnSelected(RoutedEventArgs e)
+        {
+            RaiseEvent(e);
+        }
+
+        /// <summary>
+        ///     Event fired when <see cref="IsSelected"/> becomes false.
+        /// </summary>
+        public static readonly RoutedEvent UnselectedEvent = EventManager.RegisterRoutedEvent("Unselected", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(VirtualTreeViewItem));
+
+        /// <summary>
+        ///     Event fired when <see cref="IsSelected"/> becomes false.
+        /// </summary>
+        [Category("Behavior")]
+        public event RoutedEventHandler Unselected
+        {
+            add { AddHandler(UnselectedEvent, value); }
+            remove { RemoveHandler(UnselectedEvent, value); }
+        }
+
+        /// <summary>
+        ///     Called when <see cref="IsSelected"/> becomes false.
+        ///     Default implementation fires the <see cref="Unselected"/> event.
+        /// </summary>
+        /// <param name="e">Event arguments.</param>
+        protected virtual void OnUnselected(RoutedEventArgs e)
+        {
+            RaiseEvent(e);
         }
 
         static VirtualTreeViewItem()
         {
             DefaultStyleKeyProperty.OverrideMetadata(typeof(VirtualTreeViewItem), new FrameworkPropertyMetadata(typeof(VirtualTreeViewItem)));
+        }
+
+        private static void OnIsExpandedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var item = (VirtualTreeViewItem)d;
+            bool isExpanded = (bool)e.NewValue;
+
+            if (!isExpanded)
+            {
+                var parentTreeView = item.ParentTreeView;
+                parentTreeView?.HandleSelectionAndCollapsed(item);
+            }
+
+            if (isExpanded)
+                item.OnExpanded(new RoutedEventArgs(ExpandedEvent, item));
+            else
+                item.OnCollapsed(new RoutedEventArgs(CollapsedEvent, item));
+        }
+        private static void OnIsSelectedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            VirtualTreeViewItem item = (VirtualTreeViewItem)d;
+            bool isSelected = (bool)e.NewValue;
+
+            item.Select(isSelected);
+
+            if (isSelected)
+                item.OnSelected(new RoutedEventArgs(SelectedEvent, item));
+            else
+                item.OnUnselected(new RoutedEventArgs(UnselectedEvent, item));
+        }
+
+        internal object GetItemOrContainerFromContainer(DependencyObject container)
+        {
+            object item = ItemContainerGenerator.ItemFromContainer(container);
+
+            if (item == DependencyProperty.UnsetValue
+                && ItemsControlFromItemContainer(container) == this
+                //&& ((IGeneratorHost)this).IsItemItsOwnContainer(container)
+                )
+            {
+                item = container;
+            }
+
+            return item;
+        }
+
+
+        private void Select(bool selected)
+        {
+            var treeView = ParentTreeView;
+            var parent = ParentTreeViewItem;
+            if (treeView != null && parent != null && !treeView.IsSelectionChangeActive)
+            {
+                // Give the TreeView a reference to this container and its data
+                object data = parent.GetItemOrContainerFromContainer(this);
+                treeView.ChangeSelection(data, this, selected);
+
+                // Making focus of TreeViewItem synchronize with selection if needed.
+                if (selected && treeView.IsKeyboardFocusWithin && !IsKeyboardFocusWithin)
+                {
+                    Focus();
+                }
+            }
+        }
+        internal void UpdateContainsSelection(bool selected)
+        {
+            //TreeViewItem parent = ParentTreeViewItem;
+            //while (parent != null)
+            //{
+            //    parent.ContainsSelection = selected;
+            //    parent = parent.ParentTreeViewItem;
+            //}
         }
     }
 }

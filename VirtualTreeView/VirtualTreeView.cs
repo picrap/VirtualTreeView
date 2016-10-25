@@ -8,10 +8,14 @@ namespace VirtualTreeView
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
+    using System.ComponentModel;
     using System.Windows;
+    using System.Windows.Automation.Peers;
     using System.Windows.Controls;
     using System.Windows.Data;
     using System.Windows.Markup;
+    using MS.Internal;
+    using MS.Utility;
     using Reflection;
 
     [StyleTypedProperty(Property = nameof(ItemContainerStyle), StyleTargetType = typeof(TreeViewItem))]
@@ -28,6 +32,43 @@ namespace VirtualTreeView
         }
 
         public IList HierarchicalItems { get; } = new ObservableCollection<object>();
+
+        public bool IsSelectionChangeActive { get; set; }
+
+        public static readonly DependencyProperty SelectedItemProperty = DependencyProperty.Register(
+            "SelectedItem", typeof(object), typeof(VirtualTreeView), new PropertyMetadata(default(object)));
+
+        public object SelectedItem
+        {
+            get { return (object)GetValue(SelectedItemProperty); }
+            set { SetValue(SelectedItemProperty, value); }
+        }
+
+        /// <summary>
+        ///     Event fired when <see cref="SelectedItem"/> changes.
+        /// </summary>
+        public static readonly RoutedEvent SelectedItemChangedEvent
+            = EventManager.RegisterRoutedEvent("SelectedItemChanged", RoutingStrategy.Bubble, typeof(RoutedPropertyChangedEventHandler<object>), typeof(VirtualTreeView));
+
+        /// <summary>
+        ///     Event fired when <see cref="SelectedItem"/> changes.
+        /// </summary>
+        [Category("Behavior")]
+        public event RoutedPropertyChangedEventHandler<object> SelectedItemChanged
+        {
+            add { AddHandler(SelectedItemChangedEvent, value); }
+            remove { RemoveHandler(SelectedItemChangedEvent, value); }
+        }
+
+        /// <summary>
+        ///     Called when <see cref="SelectedItem"/> changes.
+        ///     Default implementation fires the <see cref="SelectedItemChanged"/> event.
+        /// </summary>
+        /// <param name="e">Event arguments.</param>
+        protected virtual void OnSelectedItemChanged(RoutedPropertyChangedEventArgs<object> e)
+        {
+            RaiseEvent(e);
+        }
 
         static VirtualTreeView()
         {
@@ -104,6 +145,97 @@ namespace VirtualTreeView
         {
             foreach (var i in l)
                 Items.Insert(index++, i);
+        }
+        internal void HandleSelectionAndCollapsed(VirtualTreeViewItem collapsed)
+        {
+            //if ((_selectedContainer != null) && (_selectedContainer != collapsed))
+            //{
+            //    // Check if current selection is under the collapsed element
+            //    TreeViewItem current = _selectedContainer;
+            //    do
+            //    {
+            //        current = current.ParentTreeViewItem;
+            //        if (current == collapsed)
+            //        {
+            //            TreeViewItem oldContainer = _selectedContainer;
+
+            //            ChangeSelection(collapsed.ParentItemsControl.ItemContainerGenerator.ItemFromContainer(collapsed), collapsed, true);
+
+            //            if (oldContainer.IsKeyboardFocusWithin)
+            //            {
+            //                // If the oldContainer had focus then move focus to the newContainer instead
+            //                _selectedContainer.Focus();
+            //            }
+
+            //            break;
+            //        }
+            //    }
+            //    while (current != null);
+            //}
+        }
+
+        private VirtualTreeViewItem _selectedContainer;
+
+        internal void ChangeSelection(object data, VirtualTreeViewItem container, bool selected)
+        {
+            if (IsSelectionChangeActive)
+            {
+                return;
+            }
+
+            object oldValue = null;
+            object newValue = null;
+            bool changed = false;
+
+            IsSelectionChangeActive = true;
+
+            try
+            {
+                if (selected)
+                {
+                    if (container != _selectedContainer)
+                    {
+                        oldValue = SelectedItem;
+                        newValue = data;
+
+                        if (_selectedContainer != null)
+                        {
+                            _selectedContainer.IsSelected = false;
+                            _selectedContainer.UpdateContainsSelection(false);
+                        }
+                        _selectedContainer = container;
+                        _selectedContainer.UpdateContainsSelection(true);
+                        SelectedItem = data;
+                        //UpdateSelectedValue(data);
+                        changed = true;
+                    }
+                }
+                else
+                {
+                    if (container == _selectedContainer)
+                    {
+                        _selectedContainer.UpdateContainsSelection(false);
+                        _selectedContainer = null;
+                        SelectedItem = null;
+
+                        oldValue = data;
+                        changed = true;
+                    }
+                }
+
+                if (container.IsSelected != selected)
+                    container.IsSelected = selected;
+            }
+            finally
+            {
+                IsSelectionChangeActive = false;
+            }
+
+            if (changed)
+            {
+                var e = new RoutedPropertyChangedEventArgs<object>(oldValue, newValue, SelectedItemChangedEvent);
+                OnSelectedItemChanged(e);
+            }
         }
     }
 }
