@@ -10,6 +10,7 @@ namespace VirtualTreeView
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Controls.Primitives;
+    using System.Windows.Data;
     using System.Windows.Markup;
     using Collection;
     using Reflection;
@@ -209,7 +210,7 @@ namespace VirtualTreeView
 
         protected override DependencyObject GetContainerForItemOverride()
         {
-            return new VirtualTreeViewItem { ParentTreeView = this };
+            return new VirtualTreeViewItem { ParentTreeView = this, IsGenerated = true };
         }
 
         internal int GetDepth(VirtualTreeViewItem treeViewItem)
@@ -227,21 +228,15 @@ namespace VirtualTreeView
             if (treeViewItem != null)
                 return treeViewItem;
 
-            return new VirtualTreeViewItem { DataContext = item };
-
-            // but at early stages, the container might not been generated
-            IItemContainerGenerator generator = ItemContainerGenerator;
-            var index = _hierarchicalItemsSource.IndexOf(item);
-            var pos = generator.GeneratorPositionFromIndex(-1);
-            using (generator.StartAt(pos, GeneratorDirection.Forward))
-            {
-                bool isNewlyRealized;
-                var container = generator.GenerateNext(out isNewlyRealized);
-                if (isNewlyRealized)
-                    generator.PrepareItemContainer(container);
-            }
-
-            treeViewItem = (VirtualTreeViewItem)ItemContainerGenerator.ContainerFromItem(item);
+            // otherwise create with two sources:
+            // - template which may bind the ItemsSource property
+            // - style    which may bind the IsExpanded  property
+            var hierarchicalDataTemplate = ItemTemplate as HierarchicalDataTemplate;
+            treeViewItem = new VirtualTreeViewItem { DataContext = item };
+            if (hierarchicalDataTemplate?.ItemsSource != null)
+                BindingOperations.SetBinding(treeViewItem, ItemsSourceProperty, hierarchicalDataTemplate.ItemsSource);
+            // the style needs to be applied after DataContext is set, otherwise it won't bind
+            treeViewItem.Style = ItemContainerStyle;
             return treeViewItem;
         }
     }

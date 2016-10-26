@@ -71,7 +71,7 @@
             </TreeViewItem>
         </TreeView>
 
-        <!--<v:VirtualTreeView Grid.Column="2" Grid.Row="1">
+        <v:VirtualTreeView Grid.Column="2" Grid.Row="1">
             <v:VirtualTreeViewItem Header="1">
                 <v:VirtualTreeViewItem Header="1.1"/>
                 <v:VirtualTreeViewItem Header="1.2"/>
@@ -94,9 +94,14 @@
                 <v:VirtualTreeViewItem Header="2.1"/>
                 <v:VirtualTreeViewItem Header="2.2"/>
             </v:VirtualTreeViewItem>
-        </v:VirtualTreeView>-->
+        </v:VirtualTreeView>
 
         <TreeView Grid.Column="1" Grid.Row="2" ItemsSource="{x:Static local:DemoItem.Root}">
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="TreeViewItem">
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                </Style>
+            </TreeView.ItemContainerStyle>
             <TreeView.ItemTemplate>
                 <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                     <Grid>
@@ -107,6 +112,11 @@
         </TreeView>
 
         <v:VirtualTreeView Grid.Column="2" Grid.Row="2" ItemsSource="{x:Static local:DemoItem.Root}">
+            <v:VirtualTreeView.ItemContainerStyle>
+                <Style TargetType="v:VirtualTreeViewItem">
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                </Style>
+            </v:VirtualTreeView.ItemContainerStyle>
             <v:VirtualTreeView.ItemTemplate>
                 <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                     <Grid d:DataContext="{d:DesignInstance Type=local:DemoItem, IsDesignTimeCreatable=true}">

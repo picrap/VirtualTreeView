@@ -58,6 +58,8 @@ namespace VirtualTreeView
         /// </summary>
         internal VirtualTreeViewItem ParentTreeViewItem { get; set; }
 
+        internal bool IsGenerated { get; set; }
+
         private int? _depth;
 
         /// <summary>
@@ -72,7 +74,7 @@ namespace VirtualTreeView
             {
                 if (!_depth.HasValue)
                 {
-                    if (ParentTreeViewItem == null && ParentTreeView != null)
+                    if (IsGenerated)
                         _depth = ParentTreeView.GetDepth(this);
                     else
                     {

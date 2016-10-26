@@ -13,7 +13,7 @@ namespace VirtualTreeView.Collection
     {
         private readonly IList _target;
 
-        public FlatCollection(IEnumerable source, IList target)
+        public FlatCollection(IList source, IList target)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -22,7 +22,7 @@ namespace VirtualTreeView.Collection
             if (target.Count > 0)
                 throw new ArgumentException(@"Must be empty", nameof(target));
             _target = target;
-            source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += (o, args) => OnCollectionChanged(null, args));
+            source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += (o, args) => OnCollectionChanged(null, source, args));
             InsertItems(0, source, null);
         }
 
@@ -72,18 +72,18 @@ namespace VirtualTreeView.Collection
             var itemChildren = GetChildren(item);
             if (IsExpanded(item) && itemChildren != null)
                 count += InsertItems(index + 1, itemChildren, item);
-            itemChildren.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnCollectionChanged(item, args));
+            itemChildren.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnCollectionChanged(item, itemChildren, args));
             return count;
         }
 
-        private void OnCollectionChanged(object parent, NotifyCollectionChangedEventArgs e)
+        private void OnCollectionChanged(object parent, IList collection, NotifyCollectionChangedEventArgs e)
         {
             if (parent != null && !IsExpanded(parent))
                 return;
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
-                    InsertItems(GetInsertIndex(parent, e.NewStartingIndex), e.NewItems, parent);
+                    InsertItems(GetInsertIndex(collection, e.NewStartingIndex), e.NewItems, parent);
                     break;
                 case NotifyCollectionChangedAction.Remove:
                     throw new NotImplementedException();
@@ -128,20 +128,22 @@ namespace VirtualTreeView.Collection
         /// <summary>
         /// Gets the index where an item can be insertedn given the parent and child index.
         /// </summary>
-        /// <param name="item">The item.</param>
+        /// <param name="collection">The collection.</param>
         /// <param name="childIndex">Index of the child.</param>
         /// <returns></returns>
-        private int GetInsertIndex(object item, int childIndex)
+        private int GetInsertIndex(IList collection, int childIndex)
         {
-            if (item == null) // root item
-            {
-                // first is always first
-                if (childIndex == 0)
-                    return 0;
-                // next follows the previous item and its children
-                return GetLastChildIndex(GetItemFromContainer(_target[childIndex - 1]), true) + 1;
-            }
-            return GetLastChildIndex(GetChildren(item)[childIndex], true);
+            //if (item == null) // root item
+            //{
+            //    // first is always first
+            //    if (childIndex == 0)
+            //        return 0;
+            //    // next follows the previous item and its children
+            //    return GetLastChildIndex(GetItemFromContainer(_target[childIndex - 1]), true) + 1;
+            //}
+            if (childIndex == 0)
+                return 0;
+            return GetLastChildIndex(collection[childIndex - 1], true) + 1;
         }
 
         /// <summary>

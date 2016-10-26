@@ -5,10 +5,14 @@ namespace VirtualTreeViewDemo
 {
     using System;
     using System.Collections.ObjectModel;
+    using System.Diagnostics;
 
+    [DebuggerDisplay("{Label}")]
     public class DemoItem
     {
         public ObservableCollection<DemoItem> Children { get; } = new ObservableCollection<DemoItem>();
+
+        public bool IsExpanded { get; set; }
 
         public string Label { get; set; }
 
@@ -33,6 +37,7 @@ namespace VirtualTreeViewDemo
             {
                 var item = new DemoItem();
                 item.Label = (parent != null ? parent.Label + "." : "") + (itemIndex + 1);
+                item.IsExpanded = random.Next(5) == 0;
                 items[itemIndex] = item;
                 if (depth > 0)
                 {

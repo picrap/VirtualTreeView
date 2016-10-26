@@ -9,7 +9,7 @@ namespace VirtualTreeView
 
     public class VirtualTreeViewItemFlatCollection : FlatCollection
     {
-        public VirtualTreeViewItemFlatCollection(IEnumerable source, IList target)
+        public VirtualTreeViewItemFlatCollection(IList source, IList target)
             : base(source, target)
         {
         }

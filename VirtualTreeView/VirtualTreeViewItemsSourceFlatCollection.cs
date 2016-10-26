@@ -10,7 +10,7 @@ namespace VirtualTreeView
     {
         private readonly VirtualTreeView _treeView;
 
-        public VirtualTreeViewItemsSourceFlatCollection(IEnumerable source, IList target, VirtualTreeView treeView)
+        public VirtualTreeViewItemsSourceFlatCollection(IList source, IList target, VirtualTreeView treeView)
             : base(source, target)
         {
             _treeView = treeView;
