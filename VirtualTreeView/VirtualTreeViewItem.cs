@@ -43,34 +43,14 @@ namespace VirtualTreeView
         }
 
         /// <summary>
-        ///     Returns the immediate parent ItemsControl.
-        /// </summary>
-        internal ItemsControl ParentItemsControl { get; set; }
-
-        /// <summary>
         ///     Walks up the parent chain of TreeViewItems to the top TreeView.
         /// </summary>
-        private VirtualTreeView ParentTreeView
-        {
-            get
-            {
-                for (var itemControl = ParentItemsControl; itemControl != null;)
-                {
-                    if (itemControl is VirtualTreeView)
-                        return (VirtualTreeView)itemControl;
-                    var treeViewItem = itemControl as VirtualTreeViewItem;
-                    if (treeViewItem == null)
-                        return null;
-                    itemControl = treeViewItem.ParentItemsControl;
-                }
+        internal VirtualTreeView ParentTreeView { get; set; }
 
-                return null;
-            }
-        }
         /// <summary>
         ///     Returns the immediate parent VirtualTreeViewItem. Null if the parent is a TreeView.
         /// </summary>
-        internal VirtualTreeViewItem ParentTreeViewItem => ParentItemsControl as VirtualTreeViewItem;
+        internal VirtualTreeViewItem ParentTreeViewItem { get; set; }
 
         /// <summary>
         ///     Event fired when <see cref="IsExpanded"/> becomes true.
@@ -180,7 +160,11 @@ namespace VirtualTreeView
         public VirtualTreeViewItem()
         {
             INotifyCollectionChanged notifyCollectionChanged = Items;
-            notifyCollectionChanged.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentItemsControl = this));
+            notifyCollectionChanged.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i =>
+            {
+                i.ParentTreeViewItem = this;
+                i.ParentTreeView = ParentTreeView;
+            }));
         }
 
         private static void OnIsExpandedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
