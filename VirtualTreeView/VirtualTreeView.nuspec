@@ -8,7 +8,7 @@
     <owners>$author$</owners>
     <licenseUrl>http://opensource.org/licenses/mit-license.php</licenseUrl>
     <projectUrl>https://github.com/picrap/VirtualTreeView</projectUrl>
-    <iconUrl>https://raw.githubusercontent.com/picrap/VirtualTreeView/master/Icon/Persistence.png</iconUrl>
+    <iconUrl>https://raw.githubusercontent.com/picrap/VirtualTreeView/master/Icon/VirtualTreeView.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <summary>Virtual TreeView WPF control</summary>
     <description>$description$</description>
