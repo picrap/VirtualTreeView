@@ -5,6 +5,7 @@ namespace VirtualTreeView
 {
     using System;
     using System.Collections;
+    using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
     using System.ComponentModel;
@@ -18,13 +19,24 @@ namespace VirtualTreeView
     [ContentProperty(nameof(HierarchicalItems))]
     public class VirtualTreeView : ItemsControl
     {
-        public static readonly DependencyProperty HierarchicalItemsSourceProperty = DependencyProperty.Register(
-            nameof(HierarchicalItemsSource), typeof(TreeViewItemCollection), typeof(VirtualTreeView), new PropertyMetadata(null, OnHierarchicalItemsSourceChanged));
+        private readonly TreeViewItemCollection _hierarchicalItemsSource = new TreeViewItemCollection();
 
-        public TreeViewItemCollection HierarchicalItemsSource
+        private bool _hierarchicalItemsSourceBound;
+
+        public IEnumerable HierarchicalItemsSource
         {
-            get { return (TreeViewItemCollection)GetValue(HierarchicalItemsSourceProperty); }
-            set { SetValue(HierarchicalItemsSourceProperty, value); }
+            get { return _hierarchicalItemsSource; }
+            set
+            {
+                _hierarchicalItemsSource.Clear();
+                ItemsSource = null;
+                _hierarchicalItemsSourceBound = value != null;
+                if (_hierarchicalItemsSourceBound)
+                {
+                    foreach (var newItem in value)
+                        _hierarchicalItemsSource.Add(newItem);
+                }
+            }
         }
 
         public IList HierarchicalItems { get; } = new ObservableCollection<object>();
@@ -39,6 +51,9 @@ namespace VirtualTreeView
             get { return GetValue(SelectedItemProperty); }
             set { SetValue(SelectedItemProperty, value); }
         }
+
+        private VirtualTreeViewFlatCollection FlatItems { get; }
+        private IndexedCollection IndexedItemsSource { get; }
 
         /// <summary>
         ///     Event fired when <see cref="SelectedItem"/> changes.
@@ -73,37 +88,42 @@ namespace VirtualTreeView
 
         public VirtualTreeView()
         {
+            FlatItems = new VirtualTreeViewFlatCollection(HierarchicalItems, Items);
+            IndexedItemsSource = new IndexedCollection(_hierarchicalItemsSource);
             // mark items
             HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentTreeView = this)));
             // propagate changes
-            HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsCollectionChanged);
+            //HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsCollectionChanged);
+            _hierarchicalItemsSource.CollectionChanged += OnHierarchicalItemsSourceCollectionChanged;
         }
 
-        private static void OnHierarchicalItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private void OnHierarchicalItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            var @this = (VirtualTreeView)d;
-            e.OldValue.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged -= @this.OnHierarchicalItemsSourceCollectionChanged);
-            e.NewValue.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += @this.OnHierarchicalItemsSourceCollectionChanged);
+            e.OldValue.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged -= OnHierarchicalItemsSourceCollectionChanged);
+            e.NewValue.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsSourceCollectionChanged);
         }
 
         private void OnHierarchicalItemsCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (HierarchicalItemsSource != null)
+            if (_hierarchicalItemsSourceBound)
                 throw new InvalidOperationException("HierarchicalItemsSource is data bound, do no use HierarchicalItems");
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
-                    AppendItems(e.NewItems);
+                    FlatItems.AppendItems(e.NewItems);
                     break;
                 case NotifyCollectionChangedAction.Remove:
+                    throw new NotImplementedException();
                     break;
                 case NotifyCollectionChangedAction.Replace:
+                    throw new NotImplementedException();
                     break;
                 case NotifyCollectionChangedAction.Move:
+                    throw new NotImplementedException();
                     break;
                 case NotifyCollectionChangedAction.Reset:
-                    Items.Clear();
-                    AppendItems(HierarchicalItems);
+                    FlatItems.Clear();
+                    FlatItems.AppendItems(HierarchicalItems);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -117,68 +137,17 @@ namespace VirtualTreeView
                 case NotifyCollectionChangedAction.Add:
                     break;
                 case NotifyCollectionChangedAction.Remove:
+                    throw new NotImplementedException();
                     break;
                 case NotifyCollectionChangedAction.Replace:
+                    throw new NotImplementedException();
                     break;
                 case NotifyCollectionChangedAction.Move:
+                    throw new NotImplementedException();
                     break;
                 case NotifyCollectionChangedAction.Reset:
-                    Items.Clear();
-                    foreach (var i in HierarchicalItemsSource)
-                        AppendItem(i);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
+                    IndexedItemsSource.Clear();
 
-        private void AppendItem(object item) => InsertItem(Items.Count, item);
-        private void AppendItems(IList items) => InsertItems(Items.Count, items);
-
-        private int InsertItem(int index, object item)
-        {
-            var count = 1;
-            Items.Insert(index, new VirtualTreeViewItemHolder(item));
-            item.IfType<VirtualTreeViewItem>(i =>
-            {
-                if (i.IsExpanded)
-                    count += InsertItems(index + 1, i.Items);
-                i.Items.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnItemItemsCollectionChanged(i, args));
-            });
-            return count;
-        }
-
-        private int InsertItems(int index, IList items)
-        {
-            var startIndex = index;
-            foreach (var i in items)
-                index += InsertItem(index, i);
-            return index - startIndex;
-        }
-
-        private void DeleteItems(int index, int count)
-        {
-            while (count-- > 0)
-                Items.RemoveAt(index);
-        }
-
-        private void OnItemItemsCollectionChanged(VirtualTreeViewItem item, NotifyCollectionChangedEventArgs e)
-        {
-            if (!item.IsExpanded)
-                return;
-            switch (e.Action)
-            {
-                case NotifyCollectionChangedAction.Add:
-                    InsertItems(GetInsertIndex(item, e.NewStartingIndex), e.NewItems);
-                    break;
-                case NotifyCollectionChangedAction.Remove:
-                    break;
-                case NotifyCollectionChangedAction.Replace:
-                    break;
-                case NotifyCollectionChangedAction.Move:
-                    break;
-                case NotifyCollectionChangedAction.Reset:
-                    InsertItems(GetItemIndex(item) + 1, item.Items);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -187,58 +156,12 @@ namespace VirtualTreeView
 
         internal void OnExpanded(ItemsControl item)
         {
-            var itemIndex = GetItemIndex(item);
-            InsertItems(itemIndex + 1, item.Items);
+            FlatItems.Expand(item);
         }
 
         internal void OnCollapsed(ItemsControl item)
         {
-            var itemIndex = GetItemIndex(item);
-            var lastChildIndex = GetLastChildIndex(item, false);
-            DeleteItems(itemIndex + 1, lastChildIndex - itemIndex);
-        }
-
-        /// <summary>
-        /// Gets the index where an item can be insertedn given the parent and child index.
-        /// </summary>
-        /// <param name="item">The item.</param>
-        /// <param name="childIndex">Index of the child.</param>
-        /// <returns></returns>
-        private int GetInsertIndex(ItemsControl item, int childIndex)
-        {
-            return GetLastChildIndex(item.Items[childIndex], true);
-        }
-
-        /// <summary>
-        /// Gets the last child index.
-        /// </summary>
-        /// <param name="item">The item.</param>
-        /// <param name="onlyVisible">if set to <c>true</c> [only visible].</param>
-        /// <returns></returns>
-        private int GetLastChildIndex(object item, bool onlyVisible)
-        {
-            var treeViewItem = item as VirtualTreeViewItem;
-            if (treeViewItem == null || treeViewItem.Items.Count == 0 || (onlyVisible && !treeViewItem.IsExpanded))
-                return GetItemIndex(item);
-
-            return GetLastChildIndex(treeViewItem.Items[treeViewItem.Items.Count - 1], onlyVisible);
-        }
-
-        /// <summary>
-        /// Gets the index of the item.
-        /// </summary>
-        /// <param name="item">The item.</param>
-        /// <returns></returns>
-        private int GetItemIndex(object item)
-        {
-            // TODO: optimize to dictionary
-            for (int index = 0; index < Items.Count; index++)
-            {
-                var indexedItem = (VirtualTreeViewItemHolder)Items[index];
-                if (ReferenceEquals(indexedItem.Content, item))
-                    return index;
-            }
-            return -1;
+            FlatItems.Collapse(item);
         }
 
         private VirtualTreeViewItem _selectedContainer;
