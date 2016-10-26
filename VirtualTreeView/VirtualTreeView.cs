@@ -93,7 +93,7 @@ namespace VirtualTreeView
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
-                    AppendRange(e.NewItems);
+                    AppendItems(e.NewItems);
                     break;
                 case NotifyCollectionChangedAction.Remove:
                     break;
@@ -103,7 +103,7 @@ namespace VirtualTreeView
                     break;
                 case NotifyCollectionChangedAction.Reset:
                     Items.Clear();
-                    AppendRange(HierarchicalItems);
+                    AppendItems(HierarchicalItems);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -125,27 +125,41 @@ namespace VirtualTreeView
                 case NotifyCollectionChangedAction.Reset:
                     Items.Clear();
                     foreach (var i in HierarchicalItemsSource)
-                        Append(i);
+                        AppendItem(i);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
 
-        private void Append(object o) => Add(Items.Count, o);
-        private void AppendRange(IList l) => AddRange(Items.Count, l);
+        private void AppendItem(object item) => InsertItem(Items.Count, item);
+        private void AppendItems(IList items) => InsertItems(Items.Count, items);
 
-        private int Add(int index, object o)
+        private int InsertItem(int index, object item)
         {
             var count = 1;
-            Items.Insert(index, new VirtualTreeViewItemHolder(o));
-            o.IfType<VirtualTreeViewItem>(i =>
+            Items.Insert(index, new VirtualTreeViewItemHolder(item));
+            item.IfType<VirtualTreeViewItem>(i =>
             {
                 if (i.IsExpanded)
-                    count += Add(index + 1, i.Items);
+                    count += InsertItems(index + 1, i.Items);
                 i.Items.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnItemItemsCollectionChanged(i, args));
             });
             return count;
+        }
+
+        private int InsertItems(int index, IList items)
+        {
+            var startIndex = index;
+            foreach (var i in items)
+                index += InsertItem(index, i);
+            return index - startIndex;
+        }
+
+        private void DeleteItems(int index, int count)
+        {
+            while (count-- > 0)
+                Items.RemoveAt(index);
         }
 
         private void OnItemItemsCollectionChanged(VirtualTreeViewItem item, NotifyCollectionChangedEventArgs e)
@@ -155,7 +169,7 @@ namespace VirtualTreeView
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
-                    AddRange(GetInsertIndex(item, e.NewStartingIndex), e.NewItems);
+                    InsertItems(GetInsertIndex(item, e.NewStartingIndex), e.NewItems);
                     break;
                 case NotifyCollectionChangedAction.Remove:
                     break;
@@ -164,48 +178,60 @@ namespace VirtualTreeView
                 case NotifyCollectionChangedAction.Move:
                     break;
                 case NotifyCollectionChangedAction.Reset:
-                    AddRange(GetItemIndex(item) + 1, item.Items);
+                    InsertItems(GetItemIndex(item) + 1, item.Items);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
 
-        private int AddRange(int index, IList l)
-        {
-            var startIndex = index;
-            foreach (var i in l)
-                index += Add(index, i);
-            return index - startIndex;
-        }
-
-        internal void OnExpanded(VirtualTreeViewItem item)
+        internal void OnExpanded(ItemsControl item)
         {
             var itemIndex = GetItemIndex(item);
-            AddRange(itemIndex + 1, item.Items);
+            InsertItems(itemIndex + 1, item.Items);
         }
 
-        internal void OnCollapsed(VirtualTreeViewItem item)
+        internal void OnCollapsed(ItemsControl item)
         {
+            var itemIndex = GetItemIndex(item);
+            var lastChildIndex = GetLastChildIndex(item, false);
+            DeleteItems(itemIndex + 1, lastChildIndex - itemIndex);
         }
 
-        private int GetInsertIndex(VirtualTreeViewItem item, int childIndex)
+        /// <summary>
+        /// Gets the index where an item can be insertedn given the parent and child index.
+        /// </summary>
+        /// <param name="item">The item.</param>
+        /// <param name="childIndex">Index of the child.</param>
+        /// <returns></returns>
+        private int GetInsertIndex(ItemsControl item, int childIndex)
         {
-            return GetLastChildIndex(item.Items[childIndex]);
+            return GetLastChildIndex(item.Items[childIndex], true);
         }
 
-        private int GetLastChildIndex(object o)
+        /// <summary>
+        /// Gets the last child index.
+        /// </summary>
+        /// <param name="item">The item.</param>
+        /// <param name="onlyVisible">if set to <c>true</c> [only visible].</param>
+        /// <returns></returns>
+        private int GetLastChildIndex(object item, bool onlyVisible)
         {
-            var item = o as VirtualTreeViewItem;
-            if (item == null || item.Items.Count == 0 || !item.IsExpanded)
-                return GetItemIndex(o);
+            var treeViewItem = item as VirtualTreeViewItem;
+            if (treeViewItem == null || treeViewItem.Items.Count == 0 || (onlyVisible && !treeViewItem.IsExpanded))
+                return GetItemIndex(item);
 
-            return GetLastChildIndex(item.Items[item.Items.Count - 1]);
+            return GetLastChildIndex(treeViewItem.Items[treeViewItem.Items.Count - 1], onlyVisible);
         }
 
+        /// <summary>
+        /// Gets the index of the item.
+        /// </summary>
+        /// <param name="item">The item.</param>
+        /// <returns></returns>
         private int GetItemIndex(object item)
         {
-            //return Items.IndexOf(item);
+            // TODO: optimize to dictionary
             for (int index = 0; index < Items.Count; index++)
             {
                 var indexedItem = (VirtualTreeViewItemHolder)Items[index];
