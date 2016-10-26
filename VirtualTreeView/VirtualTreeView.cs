@@ -8,6 +8,7 @@ namespace VirtualTreeView
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
     using System.ComponentModel;
+    using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Controls.Primitives;
@@ -37,6 +38,14 @@ namespace VirtualTreeView
             get { return GetValue(SelectedItemProperty); }
             set { SetValue(SelectedItemProperty, value); }
         }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether [optimize item bindings].
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if [optimize item bindings]; otherwise, <c>false</c>.
+        /// </value>
+        public bool OptimizeItemBindings { get; set; } = true;
 
         private VirtualTreeViewItemFlatCollection FlatItems { get; }
         private VirtualTreeViewItemsSourceFlatCollection FlatItemsSource { get; set; }
@@ -218,13 +227,14 @@ namespace VirtualTreeView
             return depth;
         }
 
-        internal VirtualTreeViewItem GetContainer(object item)
+        private VirtualTreeViewItem GetGeneratedContainer(object item)
         {
-            // most efficient: get from view
-            var treeViewItem = (VirtualTreeViewItem)ItemContainerGenerator.ContainerFromItem(item);
-            if (treeViewItem != null)
-                return treeViewItem;
+            return (VirtualTreeViewItem)ItemContainerGenerator.ContainerFromItem(item);
+        }
 
+        private VirtualTreeViewItem CreateContainer(object item)
+        {
+            VirtualTreeViewItem treeViewItem;
             // otherwise create with two sources:
             // - template which may bind the ItemsSource property
             // - style    which may bind the IsExpanded  property
@@ -235,6 +245,79 @@ namespace VirtualTreeView
             // the style needs to be applied after DataContext is set, otherwise it won't bind
             treeViewItem.Style = ItemContainerStyle;
             return treeViewItem;
+        }
+
+        internal bool IsExpanded(object item)
+        {
+            return GetGeneratedContainer(item)?.IsExpanded ?? GetTrivialIsExpanded(item) ?? GetNonTrivialIsExpanded(item);
+        }
+
+        private string _isExpandedSourceProperty;
+
+        private bool? GetTrivialIsExpanded(object item)
+        {
+            if (!OptimizeItemBindings || _isExpandedSourceProperty == null)
+                return null;
+
+            var isExpandedProperty = item.GetType().GetProperty(_isExpandedSourceProperty);
+            if (isExpandedProperty == null)
+                return null;
+
+            return (bool)isExpandedProperty.GetValue(item);
+        }
+
+        private bool GetNonTrivialIsExpanded(object item)
+        {
+            var container = CreateContainer(item);
+            if (OptimizeItemBindings)
+            {
+                var isExpandedBinding = BindingOperations.GetBinding(container, VirtualTreeViewItem.IsExpandedProperty);
+                if (isExpandedBinding != null && isExpandedBinding.Source == null && isExpandedBinding.RelativeSource == null && isExpandedBinding.ElementName == null
+                    && isExpandedBinding.Path.Path.All(IsNotSpecial))
+                {
+                    _isExpandedSourceProperty = isExpandedBinding.Path.Path;
+                }
+            }
+            return container.IsExpanded;
+        }
+
+        internal IList GetChildren(object item)
+        {
+            return GetGeneratedContainer(item)?.ItemsSource as IList ?? GetTrivialChildren(item) ?? GetNonTrivialChildren(item);
+        }
+
+        private string _childrenSourceProperty;
+
+        private IList GetTrivialChildren(object item)
+        {
+            if (!OptimizeItemBindings || _childrenSourceProperty == null)
+                return null;
+
+            var childrenSourceProperty = item.GetType().GetProperty(_childrenSourceProperty);
+            if (childrenSourceProperty == null)
+                return null;
+
+            return childrenSourceProperty.GetValue(item) as IList;
+        }
+
+        private IList GetNonTrivialChildren(object item)
+        {
+            var container = CreateContainer(item);
+            if (OptimizeItemBindings)
+            {
+                var childrenBinding = BindingOperations.GetBinding(container, VirtualTreeViewItem.ItemsSourceProperty);
+                if (childrenBinding != null && childrenBinding.Source == null && childrenBinding.RelativeSource == null && childrenBinding.ElementName == null
+                    && childrenBinding.Path.Path.All(IsNotSpecial))
+                {
+                    _childrenSourceProperty = childrenBinding.Path.Path;
+                }
+            }
+            return (IList)container.ItemsSource;
+        }
+
+        private static bool IsNotSpecial(char c)
+        {
+            return c != '.' && c != '[';
         }
     }
 }

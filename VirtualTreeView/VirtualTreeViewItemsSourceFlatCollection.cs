@@ -16,17 +16,14 @@ namespace VirtualTreeView
             _treeView = treeView;
         }
 
-        private VirtualTreeViewItem GetTreeViewItem(object item) => _treeView.GetContainer(item);
-
         protected override bool IsExpanded(object item)
         {
-            return GetTreeViewItem(item)?.IsExpanded ?? false;
+            return _treeView.IsExpanded(item);
         }
 
         protected override IList GetChildren(object item)
         {
-            // TODO: ensure this is correct
-            return (IList)GetTreeViewItem(item)?.ItemsSource;
+            return _treeView.GetChildren(item);
         }
 
         protected override object GetContainerForItem(object item)
