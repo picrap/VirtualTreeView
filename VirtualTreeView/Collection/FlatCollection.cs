@@ -13,7 +13,18 @@ namespace VirtualTreeView.Collection
     {
         private readonly IList _target;
 
-        public FlatCollection(IList source, IList target)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FlatCollection"/> class.
+        /// </summary>
+        /// <param name="source">The source.</param>
+        /// <param name="target">The target.</param>
+        /// <exception cref="System.ArgumentNullException">
+        /// </exception>
+        /// <exception cref="System.ArgumentException">Must be empty</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="source" />.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="source" />.</exception>
+        /// <exception cref="ArgumentException">Must be empty</exception>
+        protected FlatCollection(IList source, IList target)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -32,7 +43,7 @@ namespace VirtualTreeView.Collection
             _parentsByItems.Clear();
         }
 
-        protected abstract bool IsExpanded(object item);
+        protected abstract bool GetIsExpanded(object item);
         protected abstract IList GetChildren(object item);
 
         protected abstract object GetContainerForItem(object item);
@@ -41,6 +52,8 @@ namespace VirtualTreeView.Collection
         public void Expand(object item)
         {
             var itemChildren = GetChildren(item);
+            if (IsExpanded(itemChildren))
+                return;
             if (itemChildren != null && itemChildren.Count > 0)
             {
                 var itemIndex = GetItemIndex(item);
@@ -48,8 +61,23 @@ namespace VirtualTreeView.Collection
             }
         }
 
+        public bool IsExpanded(object item)
+        {
+            return IsExpanded(GetChildren(item));
+        }
+
+        private bool IsExpanded(IList itemChildren)
+        {
+            if (itemChildren == null || itemChildren.Count == 0)
+                return false;
+
+            return GetItemIndex(itemChildren[0]) >= 0;
+        }
+
         public void Collapse(object item)
         {
+            if (!IsExpanded(item))
+                return;
             var itemIndex = GetItemIndex(item);
             var lastChildIndex = GetLastChildIndex(item, false);
             DeleteItems(itemIndex + 1, lastChildIndex - itemIndex);
@@ -67,10 +95,12 @@ namespace VirtualTreeView.Collection
         private int InsertItem(int index, object item, object parent)
         {
             var count = 1;
-            _target.Insert(index, GetContainerForItem(item));
+            var containerForItem = GetContainerForItem(item);
+
+            _target.Insert(index, containerForItem);
             _parentsByItems[item] = parent;
             var itemChildren = GetChildren(item);
-            if (IsExpanded(item) && itemChildren != null)
+            if (GetIsExpanded(item) && itemChildren != null)
                 count += InsertItems(index + 1, itemChildren, item);
             itemChildren.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnCollectionChanged(item, itemChildren, args));
             return count;
@@ -78,7 +108,7 @@ namespace VirtualTreeView.Collection
 
         private void OnCollectionChanged(object parent, IList collection, NotifyCollectionChangedEventArgs e)
         {
-            if (parent != null && !IsExpanded(parent))
+            if (parent != null && !GetIsExpanded(parent))
                 return;
             switch (e.Action)
             {
@@ -155,7 +185,7 @@ namespace VirtualTreeView.Collection
         public int GetLastChildIndex(object item, bool onlyVisible)
         {
             var itemChildren = GetChildren(item);
-            if (itemChildren == null || itemChildren.Count == 0 || (onlyVisible && !IsExpanded(item)))
+            if (itemChildren == null || itemChildren.Count == 0 || (onlyVisible && !GetIsExpanded(item)))
                 return GetItemIndex(item);
 
             return GetLastChildIndex(itemChildren[itemChildren.Count - 1], true);

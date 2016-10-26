@@ -14,7 +14,7 @@ namespace VirtualTreeView
         {
         }
 
-        protected override bool IsExpanded(object item)
+        protected override bool GetIsExpanded(object item)
         {
             var virtualTreeViewItem = item as VirtualTreeViewItem;
             if (virtualTreeViewItem != null)

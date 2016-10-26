@@ -16,7 +16,7 @@ namespace VirtualTreeView
             _treeView = treeView;
         }
 
-        protected override bool IsExpanded(object item)
+        protected override bool GetIsExpanded(object item)
         {
             return _treeView.IsExpanded(item);
         }
