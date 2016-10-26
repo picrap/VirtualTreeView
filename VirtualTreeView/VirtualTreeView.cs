@@ -3,6 +3,7 @@
 
 namespace VirtualTreeView
 {
+    using System;
     using System.Collections;
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
@@ -12,6 +13,7 @@ namespace VirtualTreeView
     using System.Windows.Controls.Primitives;
     using System.Windows.Data;
     using System.Windows.Markup;
+    using System.Windows.Media;
     using Collection;
     using Reflection;
 
@@ -71,6 +73,12 @@ namespace VirtualTreeView
             ItemsSourceProperty.OverrideMetadata(typeof(VirtualTreeView), new FrameworkPropertyMetadata(OnItemsSourceChanged));
         }
 
+        public VirtualTreeView()
+        {
+            FlatItems = new VirtualTreeViewItemFlatCollection(HierarchicalItems, Items);
+            HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentTreeView = this)));
+        }
+
         private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var value = (IEnumerable)e.NewValue;
@@ -115,17 +123,6 @@ namespace VirtualTreeView
                             _hierarchicalItemsSource.Add(newItem);
                     };
             }
-        }
-
-        public VirtualTreeView()
-        {
-            FlatItems = new VirtualTreeViewItemFlatCollection(HierarchicalItems, Items);
-            //FlatItemsSource=new VirtualTreeViewItemsSourceFlatCollection(HierarchicalItemsSource,);
-            // mark items
-            HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentTreeView = this)));
-            // propagate changes
-            //HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsCollectionChanged);
-            //_hierarchicalItemsSource.CollectionChanged += OnHierarchicalItemsSourceCollectionChanged;
         }
 
         internal void OnExpanded(ItemsControl item)

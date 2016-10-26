@@ -12,7 +12,7 @@
         <Setter Property="ItemsPanel">
             <Setter.Value>
                 <ItemsPanelTemplate>
-                    <VirtualizingStackPanel />
+                    <VirtualizingStackPanel/>
                 </ItemsPanelTemplate>
             </Setter.Value>
         </Setter>
@@ -129,7 +129,7 @@
                             <RowDefinition Height="Auto"/>
                             <!--<RowDefinition/>-->
                         </Grid.RowDefinitions>
-                        <ToggleButton Grid.Column="1" Grid.Row="0" x:Name="Expander" 
+                        <ToggleButton Grid.Column="1" Grid.Row="0" x:Name="Expander"
                                       ClickMode="Press" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}" Style="{StaticResource ExpandCollapseToggleStyle}"/>
                         <Border Grid.Column="2" Grid.Row="0" x:Name="Bd" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="true">
                             <ContentPresenter x:Name="PART_Header" ContentSource="Header" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
