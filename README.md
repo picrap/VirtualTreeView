@@ -1,9 +1,11 @@
 # VirtualTreeView
-A WPF TreeView that actually supports virtualization.
+A WPF TreeView that actually supports virtualization.  
+Works with .NET Framework 4.5.  
 
 ## How to use it
 
 It is available as a [NuGet package](https://www.nuget.org/packages/VirtualTreeView/).  
+The source code includes a demonstration application, where both modes (content and binding) are showed, side-by-side to traditional `TreeView` control.
 
 ## It is complete?
 
