@@ -106,7 +106,7 @@
             </TreeView.ItemTemplate>
         </TreeView>
 
-        <v:VirtualTreeView Grid.Column="2" Grid.Row="2" HierarchicalItemsSource="{x:Static local:DemoItem.Root}">
+        <v:VirtualTreeView Grid.Column="2" Grid.Row="2" ItemsSource="{x:Static local:DemoItem.Root}">
             <v:VirtualTreeView.ItemTemplate>
                 <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                     <Grid d:DataContext="{d:DesignInstance Type=local:DemoItem, IsDesignTimeCreatable=true}">

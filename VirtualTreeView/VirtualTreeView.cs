@@ -22,37 +22,6 @@ namespace VirtualTreeView
 
         private bool _hierarchicalItemsSourceBound;
 
-        public IEnumerable HierarchicalItemsSource
-        {
-            get { return _hierarchicalItemsSource; }
-            set
-            {
-                _hierarchicalItemsSource.Clear();
-                _hierarchicalItemsSourceBound = value != null;
-                if (_hierarchicalItemsSourceBound)
-                {
-                    // on first binding, create the collection
-                    if (FlatItemsSource == null)
-                    {
-                        var itemsSource = new ObservableCollection<object>();
-                        FlatItemsSource = new VirtualTreeViewItemsSourceFlatCollection(_hierarchicalItemsSource, itemsSource, this);
-                        ItemsSource = itemsSource;
-                    }
-                    if (IsLoaded)
-                    {
-                        foreach (var newItem in value)
-                            _hierarchicalItemsSource.Add(newItem);
-                    }
-                    else
-                        Loaded += delegate
-                        {
-                            foreach (var newItem in value)
-                                _hierarchicalItemsSource.Add(newItem);
-                        };
-                }
-            }
-        }
-
         public IList HierarchicalItems { get; } = new ObservableCollection<object>();
 
         public bool IsSelectionChangeActive { get; set; }
@@ -98,6 +67,53 @@ namespace VirtualTreeView
         static VirtualTreeView()
         {
             DefaultStyleKeyProperty.OverrideMetadata(typeof(VirtualTreeView), new FrameworkPropertyMetadata(typeof(VirtualTreeView)));
+            ItemsSourceProperty.OverrideMetadata(typeof(VirtualTreeView), new FrameworkPropertyMetadata(OnItemsSourceChanged));
+        }
+
+        private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var value = (IEnumerable)e.NewValue;
+            var @this = (VirtualTreeView)d;
+            @this.OnItemsSourceChanged(value);
+        }
+
+        private bool _settingSource;
+
+        /// <summary>
+        /// Called when ItemsSource is bound.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        private void OnItemsSourceChanged(IEnumerable value)
+        {
+            if (_settingSource)
+                return;
+
+            _hierarchicalItemsSource.Clear();
+            _hierarchicalItemsSourceBound = value != null;
+            if (_hierarchicalItemsSourceBound)
+            {
+                // on first binding, create the collection
+                if (FlatItemsSource == null)
+                {
+                    var itemsSource = new ObservableCollection<object>();
+                    FlatItemsSource = new VirtualTreeViewItemsSourceFlatCollection(_hierarchicalItemsSource, itemsSource, this);
+                    _settingSource = true;
+                    // now setting the flat source that the ItemsControl will use
+                    base.ItemsSource = itemsSource;
+                    _settingSource = false;
+                }
+                if (IsLoaded)
+                {
+                    foreach (var newItem in value)
+                        _hierarchicalItemsSource.Add(newItem);
+                }
+                else
+                    Loaded += delegate
+                    {
+                        foreach (var newItem in value)
+                            _hierarchicalItemsSource.Add(newItem);
+                    };
+            }
         }
 
         public VirtualTreeView()
