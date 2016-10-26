@@ -5,6 +5,7 @@ namespace VirtualTreeView.Collection
 {
     using System;
     using System.Collections;
+    using System.Collections.Generic;
     using System.Collections.Specialized;
     using Reflection;
 
@@ -12,24 +13,30 @@ namespace VirtualTreeView.Collection
     {
         private readonly IList _target;
 
-        public FlatCollection(IList source, IList target)
+        public FlatCollection(IEnumerable source, IList target)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
+            if (target.Count > 0)
+                throw new ArgumentException(@"Must be empty", nameof(target));
             _target = target;
             source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += (o, args) => OnCollectionChanged(null, args));
-            InsertItems(0, source);
+            InsertItems(0, source, null);
         }
 
-        private void Clear() => _target.Clear();
+        private void Clear()
+        {
+            _target.Clear();
+            _parentsByItems.Clear();
+        }
 
         protected abstract bool IsExpanded(object item);
         protected abstract IList GetChildren(object item);
 
-        protected abstract object GenerateItemHolder(object item);
-        protected abstract object GetHeldItem(object item);
+        protected abstract object GetContainerForItem(object item);
+        protected abstract object GetItemFromContainer(object container);
 
         public void Expand(object item)
         {
@@ -37,7 +44,7 @@ namespace VirtualTreeView.Collection
             if (itemChildren != null && itemChildren.Count > 0)
             {
                 var itemIndex = GetItemIndex(item);
-                InsertItems(itemIndex + 1, itemChildren);
+                InsertItems(itemIndex + 1, itemChildren, item);
             }
         }
 
@@ -48,16 +55,23 @@ namespace VirtualTreeView.Collection
             DeleteItems(itemIndex + 1, lastChildIndex - itemIndex);
         }
 
-        private void AppendItem(object item) => InsertItem(_target.Count, item);
-        private void AppendItems(IList items) => InsertItems(_target.Count, items);
+        private readonly IDictionary<object, object> _parentsByItems = new Dictionary<object, object>();
 
-        private int InsertItem(int index, object item)
+        public object GetParent(object item)
+        {
+            object parent;
+            _parentsByItems.TryGetValue(item, out parent);
+            return parent;
+        }
+
+        private int InsertItem(int index, object item, object parent)
         {
             var count = 1;
-            _target.Insert(index, GenerateItemHolder(item));
+            _target.Insert(index, GetContainerForItem(item));
+            _parentsByItems[item] = parent;
             var itemChildren = GetChildren(item);
             if (IsExpanded(item) && itemChildren != null)
-                count += InsertItems(index + 1, itemChildren);
+                count += InsertItems(index + 1, itemChildren, item);
             itemChildren.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnCollectionChanged(item, args));
             return count;
         }
@@ -69,7 +83,7 @@ namespace VirtualTreeView.Collection
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
-                    InsertItems(GetInsertIndex(parent, e.NewStartingIndex), e.NewItems);
+                    InsertItems(GetInsertIndex(parent, e.NewStartingIndex), e.NewItems, parent);
                     break;
                 case NotifyCollectionChangedAction.Remove:
                     throw new NotImplementedException();
@@ -87,25 +101,28 @@ namespace VirtualTreeView.Collection
                         Collapse(parent);
                     var children = GetChildren(parent);
                     if (children != null)
-                        InsertItems(GetItemIndex(parent) + 1, children);
+                        InsertItems(GetItemIndex(parent) + 1, children, parent);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
 
-        public int InsertItems(int index, IList items)
+        private int InsertItems(int index, IEnumerable items, object parent)
         {
             var startIndex = index;
             foreach (var i in items)
-                index += InsertItem(index, i);
+                index += InsertItem(index, i, parent);
             return index - startIndex;
         }
 
         public void DeleteItems(int index, int count)
         {
             while (count-- > 0)
+            {
+                _parentsByItems.Remove(_target[index]);
                 _target.RemoveAt(index);
+            }
         }
 
         /// <summary>
@@ -122,7 +139,7 @@ namespace VirtualTreeView.Collection
                 if (childIndex == 0)
                     return 0;
                 // next follows the previous item and its children
-                return GetLastChildIndex(GetHeldItem(_target[childIndex - 1]), true) + 1;
+                return GetLastChildIndex(GetItemFromContainer(_target[childIndex - 1]), true) + 1;
             }
             return GetLastChildIndex(GetChildren(item)[childIndex], true);
         }
@@ -139,7 +156,7 @@ namespace VirtualTreeView.Collection
             if (itemChildren == null || itemChildren.Count == 0 || (onlyVisible && !IsExpanded(item)))
                 return GetItemIndex(item);
 
-            return GetLastChildIndex(itemChildren[itemChildren.Count - 1], onlyVisible);
+            return GetLastChildIndex(itemChildren[itemChildren.Count - 1], true);
         }
 
         /// <summary>
@@ -154,7 +171,7 @@ namespace VirtualTreeView.Collection
                 return -1;
             for (int index = 0; index < _target.Count; index++)
             {
-                var indexedItem = GetHeldItem(_target[index]);
+                var indexedItem = GetItemFromContainer(_target[index]);
                 if (ReferenceEquals(indexedItem, item))
                     return index;
             }

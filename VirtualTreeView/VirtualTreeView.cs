@@ -3,13 +3,13 @@
 
 namespace VirtualTreeView
 {
-    using System;
     using System.Collections;
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
     using System.ComponentModel;
     using System.Windows;
     using System.Windows.Controls;
+    using System.Windows.Controls.Primitives;
     using System.Windows.Markup;
     using Collection;
     using Reflection;
@@ -28,12 +28,27 @@ namespace VirtualTreeView
             set
             {
                 _hierarchicalItemsSource.Clear();
-                ItemsSource = null;
                 _hierarchicalItemsSourceBound = value != null;
                 if (_hierarchicalItemsSourceBound)
                 {
-                    foreach (var newItem in value)
-                        _hierarchicalItemsSource.Add(newItem);
+                    // on first binding, create the collection
+                    if (FlatItemsSource == null)
+                    {
+                        var itemsSource = new ObservableCollection<object>();
+                        FlatItemsSource = new VirtualTreeViewItemsSourceFlatCollection(_hierarchicalItemsSource, itemsSource, this);
+                        ItemsSource = itemsSource;
+                    }
+                    if (IsLoaded)
+                    {
+                        foreach (var newItem in value)
+                            _hierarchicalItemsSource.Add(newItem);
+                    }
+                    else
+                        Loaded += delegate
+                        {
+                            foreach (var newItem in value)
+                                _hierarchicalItemsSource.Add(newItem);
+                        };
                 }
             }
         }
@@ -51,8 +66,8 @@ namespace VirtualTreeView
             set { SetValue(SelectedItemProperty, value); }
         }
 
-        private VirtualTreeViewFlatCollection FlatItems { get; }
-        private IndexedCollection IndexedItemsSource { get; }
+        private VirtualTreeViewItemFlatCollection FlatItems { get; }
+        private VirtualTreeViewItemsSourceFlatCollection FlatItemsSource { get; set; }
 
         /// <summary>
         ///     Event fired when <see cref="SelectedItem"/> changes.
@@ -87,8 +102,8 @@ namespace VirtualTreeView
 
         public VirtualTreeView()
         {
-            FlatItems = new VirtualTreeViewFlatCollection(HierarchicalItems, Items);
-            IndexedItemsSource = new IndexedCollection(_hierarchicalItemsSource);
+            FlatItems = new VirtualTreeViewItemFlatCollection(HierarchicalItems, Items);
+            //FlatItemsSource=new VirtualTreeViewItemsSourceFlatCollection(HierarchicalItemsSource,);
             // mark items
             HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentTreeView = this)));
             // propagate changes
@@ -96,38 +111,20 @@ namespace VirtualTreeView
             //_hierarchicalItemsSource.CollectionChanged += OnHierarchicalItemsSourceCollectionChanged;
         }
 
-        private void OnHierarchicalItemsSourceCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            switch (e.Action)
-            {
-                case NotifyCollectionChangedAction.Add:
-                    break;
-                case NotifyCollectionChangedAction.Remove:
-                    throw new NotImplementedException();
-                    break;
-                case NotifyCollectionChangedAction.Replace:
-                    throw new NotImplementedException();
-                    break;
-                case NotifyCollectionChangedAction.Move:
-                    throw new NotImplementedException();
-                    break;
-                case NotifyCollectionChangedAction.Reset:
-                    IndexedItemsSource.Clear();
-
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
-
         internal void OnExpanded(ItemsControl item)
         {
-            FlatItems.Expand(item);
+            if (_hierarchicalItemsSourceBound)
+                FlatItemsSource.Expand(item.DataContext);
+            else
+                FlatItems.Expand(item);
         }
 
         internal void OnCollapsed(ItemsControl item)
         {
-            FlatItems.Collapse(item);
+            if (_hierarchicalItemsSourceBound)
+                FlatItemsSource.Collapse(item.DataContext);
+            else
+                FlatItems.Collapse(item);
         }
 
         private VirtualTreeViewItem _selectedContainer;
@@ -192,6 +189,44 @@ namespace VirtualTreeView
                 var e = new RoutedPropertyChangedEventArgs<object>(oldValue, newValue, SelectedItemChangedEvent);
                 OnSelectedItemChanged(e);
             }
+        }
+
+        protected override DependencyObject GetContainerForItemOverride()
+        {
+            return new VirtualTreeViewItem { ParentTreeView = this };
+        }
+
+        internal int GetDepth(VirtualTreeViewItem treeViewItem)
+        {
+            int depth = -1; // starting from -1 here, cause the dataContext below will be non-null at least once
+            for (var dataContext = treeViewItem.DataContext; dataContext != null; dataContext = FlatItemsSource.GetParent(dataContext))
+                depth++;
+            return depth;
+        }
+
+        internal VirtualTreeViewItem GetContainer(object item)
+        {
+            // most efficient: get from view
+            var treeViewItem = (VirtualTreeViewItem)ItemContainerGenerator.ContainerFromItem(item);
+            if (treeViewItem != null)
+                return treeViewItem;
+
+            return new VirtualTreeViewItem { DataContext = item };
+
+            // but at early stages, the container might not been generated
+            IItemContainerGenerator generator = ItemContainerGenerator;
+            var index = _hierarchicalItemsSource.IndexOf(item);
+            var pos = generator.GeneratorPositionFromIndex(-1);
+            using (generator.StartAt(pos, GeneratorDirection.Forward))
+            {
+                bool isNewlyRealized;
+                var container = generator.GenerateNext(out isNewlyRealized);
+                if (isNewlyRealized)
+                    generator.PrepareItemContainer(container);
+            }
+
+            treeViewItem = (VirtualTreeViewItem)ItemContainerGenerator.ContainerFromItem(item);
+            return treeViewItem;
         }
     }
 }

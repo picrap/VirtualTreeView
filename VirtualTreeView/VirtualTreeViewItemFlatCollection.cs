@@ -7,9 +7,9 @@ namespace VirtualTreeView
     using System.Windows.Controls;
     using Collection;
 
-    public class VirtualTreeViewFlatCollection : FlatCollection
+    public class VirtualTreeViewItemFlatCollection : FlatCollection
     {
-        public VirtualTreeViewFlatCollection(IList source, IList target)
+        public VirtualTreeViewItemFlatCollection(IEnumerable source, IList target)
             : base(source, target)
         {
         }
@@ -28,14 +28,14 @@ namespace VirtualTreeView
             return itemsControl?.Items;
         }
 
-        protected override object GenerateItemHolder(object item)
+        protected override object GetContainerForItem(object item)
         {
             return new VirtualTreeViewItemHolder(item);
         }
 
-        protected override object GetHeldItem(object item)
+        protected override object GetItemFromContainer(object container)
         {
-            return ((VirtualTreeViewItemHolder)item).Content;
+            return ((VirtualTreeViewItemHolder)container).Content;
         }
     }
 }

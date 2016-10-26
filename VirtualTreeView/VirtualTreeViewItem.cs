@@ -44,7 +44,7 @@ namespace VirtualTreeView
 
         public double LevelMargin
         {
-            get { return (double) GetValue(LevelMarginProperty); }
+            get { return (double)GetValue(LevelMarginProperty); }
             set { SetValue(LevelMarginProperty, value); }
         }
 
@@ -58,6 +58,8 @@ namespace VirtualTreeView
         /// </summary>
         internal VirtualTreeViewItem ParentTreeViewItem { get; set; }
 
+        private int? _depth;
+
         /// <summary>
         /// Gets the depth.
         /// </summary>
@@ -68,10 +70,19 @@ namespace VirtualTreeView
         {
             get
             {
-                int depth = 0;
-                for (var parent = ParentTreeViewItem; parent != null; parent = parent.ParentTreeViewItem)
-                    depth++;
-                return depth;
+                if (!_depth.HasValue)
+                {
+                    if (ParentTreeViewItem == null && ParentTreeView != null)
+                        _depth = ParentTreeView.GetDepth(this);
+                    else
+                    {
+                        int depth = 0;
+                        for (var parent = ParentTreeViewItem; parent != null; parent = parent.ParentTreeViewItem)
+                            depth++;
+                        _depth = depth;
+                    }
+                }
+                return _depth.Value;
             }
         }
 
