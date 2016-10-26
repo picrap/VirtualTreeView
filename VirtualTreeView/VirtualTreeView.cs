@@ -5,7 +5,6 @@ namespace VirtualTreeView
 {
     using System;
     using System.Collections;
-    using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
     using System.ComponentModel;
@@ -94,40 +93,7 @@ namespace VirtualTreeView
             HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentTreeView = this)));
             // propagate changes
             //HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsCollectionChanged);
-            _hierarchicalItemsSource.CollectionChanged += OnHierarchicalItemsSourceCollectionChanged;
-        }
-
-        private void OnHierarchicalItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            e.OldValue.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged -= OnHierarchicalItemsSourceCollectionChanged);
-            e.NewValue.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsSourceCollectionChanged);
-        }
-
-        private void OnHierarchicalItemsCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (_hierarchicalItemsSourceBound)
-                throw new InvalidOperationException("HierarchicalItemsSource is data bound, do no use HierarchicalItems");
-            switch (e.Action)
-            {
-                case NotifyCollectionChangedAction.Add:
-                    FlatItems.AppendItems(e.NewItems);
-                    break;
-                case NotifyCollectionChangedAction.Remove:
-                    throw new NotImplementedException();
-                    break;
-                case NotifyCollectionChangedAction.Replace:
-                    throw new NotImplementedException();
-                    break;
-                case NotifyCollectionChangedAction.Move:
-                    throw new NotImplementedException();
-                    break;
-                case NotifyCollectionChangedAction.Reset:
-                    FlatItems.Clear();
-                    FlatItems.AppendItems(HierarchicalItems);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+            //_hierarchicalItemsSource.CollectionChanged += OnHierarchicalItemsSourceCollectionChanged;
         }
 
         private void OnHierarchicalItemsSourceCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)

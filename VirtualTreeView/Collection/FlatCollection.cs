@@ -14,12 +14,16 @@ namespace VirtualTreeView.Collection
 
         public FlatCollection(IList source, IList target)
         {
+            if (source == null)
+                throw new ArgumentNullException(nameof(source));
+            if (target == null)
+                throw new ArgumentNullException(nameof(target));
             _target = target;
             source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += (o, args) => OnCollectionChanged(null, args));
             InsertItems(0, source);
         }
 
-        public void Clear() => _target.Clear();
+        private void Clear() => _target.Clear();
 
         protected abstract bool IsExpanded(object item);
         protected abstract IList GetChildren(object item);
@@ -45,7 +49,7 @@ namespace VirtualTreeView.Collection
         }
 
         private void AppendItem(object item) => InsertItem(_target.Count, item);
-        public void AppendItems(IList items) => InsertItems(_target.Count, items);
+        private void AppendItems(IList items) => InsertItems(_target.Count, items);
 
         private int InsertItem(int index, object item)
         {
@@ -81,7 +85,9 @@ namespace VirtualTreeView.Collection
                         Clear();
                     else
                         Collapse(parent);
-                    InsertItems(GetItemIndex(parent) + 1, GetChildren(parent));
+                    var children = GetChildren(parent);
+                    if (children != null)
+                        InsertItems(GetItemIndex(parent) + 1, children);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
