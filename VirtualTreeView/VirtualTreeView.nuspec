@@ -17,7 +17,4 @@
     <tags>wpf virtual treeview</tags>
     <developmentDependency>false</developmentDependency>
   </metadata>
-  <files>
-    <!--<file src="$SolutionDir$ArxOne.Persistence\bin\$ConfigurationName$\ArxOne.Persistence.xml" target="lib\net40-Client"/>-->
-  </files>
 </package>
