@@ -3,14 +3,11 @@
 
 namespace VirtualTreeView
 {
-    using System;
     using System.Collections.Specialized;
     using System.ComponentModel;
-    using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
     using Collection;
-    using MS.Internal.Controls;
     using Reflection;
 
     public class VirtualTreeViewItem : HeaderedItemsControl
@@ -42,6 +39,15 @@ namespace VirtualTreeView
             set { SetValue(IsSelectionActiveProperty, value); }
         }
 
+        public static readonly DependencyProperty LevelMarginProperty = DependencyProperty.Register(
+            "LevelMargin", typeof(double), typeof(VirtualTreeViewItem), new PropertyMetadata(default(double)));
+
+        public double LevelMargin
+        {
+            get { return (double) GetValue(LevelMarginProperty); }
+            set { SetValue(LevelMarginProperty, value); }
+        }
+
         /// <summary>
         ///     Walks up the parent chain of TreeViewItems to the top TreeView.
         /// </summary>
@@ -51,6 +57,23 @@ namespace VirtualTreeView
         ///     Returns the immediate parent VirtualTreeViewItem. Null if the parent is a TreeView.
         /// </summary>
         internal VirtualTreeViewItem ParentTreeViewItem { get; set; }
+
+        /// <summary>
+        /// Gets the depth.
+        /// </summary>
+        /// <value>
+        /// The depth.
+        /// </value>
+        public int Depth
+        {
+            get
+            {
+                int depth = 0;
+                for (var parent = ParentTreeViewItem; parent != null; parent = parent.ParentTreeViewItem)
+                    depth++;
+                return depth;
+            }
+        }
 
         /// <summary>
         ///     Event fired when <see cref="IsExpanded"/> becomes true.
