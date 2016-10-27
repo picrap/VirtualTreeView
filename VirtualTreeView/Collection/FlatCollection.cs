@@ -126,7 +126,7 @@ namespace VirtualTreeView.Collection
             if (!IsExpanded(item))
                 return;
             var itemIndex = GetItemIndex(item);
-            var lastChildIndex = GetLastChildIndex(item, false);
+            var lastChildIndex = GetLastChildIndex(item);
             DeleteItems(itemIndex + 1, lastChildIndex - itemIndex);
         }
 
@@ -199,7 +199,7 @@ namespace VirtualTreeView.Collection
             var firstAndLast = items.FirstAndLast();
 
             var firstIndex = GetItemIndex(firstAndLast[0]);
-            var lastChildIndex = GetLastChildIndex(firstAndLast[1], true);
+            var lastChildIndex = GetLastChildIndex(firstAndLast[1]);
 
             DeleteItems(firstIndex, lastChildIndex - firstIndex + 1);
         }
@@ -231,22 +231,21 @@ namespace VirtualTreeView.Collection
         {
             if (childIndex == 0)
                 return 0;
-            return GetLastChildIndex(collection[childIndex - 1], true) + 1;
+            return GetLastChildIndex(collection[childIndex - 1]) + 1;
         }
 
         /// <summary>
         /// Gets the last child index.
         /// </summary>
         /// <param name="item">The item.</param>
-        /// <param name="onlyVisible">if set to <c>true</c> [only visible].</param>
         /// <returns></returns>
-        private int GetLastChildIndex(object item, bool onlyVisible)
+        private int GetLastChildIndex(object item)
         {
             var itemChildren = GetChildren(item);
-            if (itemChildren == null || itemChildren.Count == 0 || (onlyVisible && !GetIsExpanded(item)))
+            if (itemChildren == null || itemChildren.Count == 0 || !IsExpanded(itemChildren))
                 return GetItemIndex(item);
 
-            return GetLastChildIndex(itemChildren[itemChildren.Count - 1], true);
+            return GetLastChildIndex(itemChildren[itemChildren.Count - 1]);
         }
 
         /// <summary>
