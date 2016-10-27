@@ -144,6 +144,13 @@ namespace VirtualTreeView.Collection
             return parent;
         }
 
+        /// <summary>
+        /// Inserts the item.
+        /// </summary>
+        /// <param name="index">The index.</param>
+        /// <param name="item">The item.</param>
+        /// <param name="parent">The parent.</param>
+        /// <returns>The number of elements added to target collection</returns>
         private int InsertItem(int index, object item, object parent)
         {
             var count = 1;
@@ -171,7 +178,9 @@ namespace VirtualTreeView.Collection
                     DeleteItems(e.OldItems);
                     break;
                 case NotifyCollectionChangedAction.Replace:
-                    throw new NotImplementedException();
+                    DeleteItems(e.OldItems);
+                    InsertItems(GetInsertIndex(collection, e.NewStartingIndex), e.NewItems, parent);
+                    break;
                 case NotifyCollectionChangedAction.Move:
                     throw new NotImplementedException();
                 case NotifyCollectionChangedAction.Reset:
