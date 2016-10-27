@@ -7,11 +7,20 @@ namespace VirtualTreeView.Collection
     using System.Collections;
     using System.Collections.Specialized;
 
+    /// <summary>
+    /// Extensions to <see cref="INotifyCollectionChanged"/> for lazy boys (and girls, no sexism here)
+    /// </summary>
     public static class NotifyCollectionChangedExtensions
     {
-        public static void OnAddRemove(this INotifyCollectionChanged notifyCollectionChanged, Action<object> onAdd, Action<object> onRemove = null)
+        /// <summary>
+        /// Sets two methods to be called when elements are added to or removed from collection.
+        /// </summary>
+        /// <param name="collection">The collection.</param>
+        /// <param name="onAdd">A method to be called when element is added.</param>
+        /// <param name="onRemove">A method to be called when element is removed.</param>
+        public static void OnAddRemove(this INotifyCollectionChanged collection, Action<object> onAdd, Action<object> onRemove = null)
         {
-            notifyCollectionChanged.CollectionChanged += delegate (object sender, NotifyCollectionChangedEventArgs e)
+            collection.CollectionChanged += delegate (object sender, NotifyCollectionChangedEventArgs e)
             {
                 switch (e.Action)
                 {
@@ -35,10 +44,9 @@ namespace VirtualTreeView.Collection
                         break;
                     case NotifyCollectionChangedAction.Move:
                         throw new NotImplementedException();
-                        break;
                     case NotifyCollectionChangedAction.Reset:
                         if (onAdd != null)
-                            foreach (var i in (IEnumerable)notifyCollectionChanged)
+                            foreach (var i in (IEnumerable)collection)
                                 onAdd(i);
                         break;
                     default:

@@ -10,38 +10,79 @@ namespace VirtualTreeView
     using Collection;
     using Reflection;
 
+    /// <summary>
+    /// Base item for <see cref="VirtualTreeView"/>
+    /// </summary>
+    /// <seealso cref="System.Windows.Controls.HeaderedItemsControl" />
     public class VirtualTreeViewItem : HeaderedItemsControl
     {
+        /// <summary>
+        /// The is expanded property
+        /// </summary>
         public static readonly DependencyProperty IsExpandedProperty = DependencyProperty.Register(
             "IsExpanded", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool), OnIsExpandedChanged));
 
+        /// <summary>
+        /// Gets or sets a value indicating whether this instance is expanded.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if this instance is expanded; otherwise, <c>false</c>.
+        /// </value>
         public bool IsExpanded
         {
             get { return (bool)GetValue(IsExpandedProperty); }
             set { SetValue(IsExpandedProperty, value); }
         }
 
+        /// <summary>
+        /// The is selected property
+        /// </summary>
         public static readonly DependencyProperty IsSelectedProperty = DependencyProperty.Register(
             "IsSelected", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool), OnIsSelectedChanged));
 
+        /// <summary>
+        /// Gets or sets a value indicating whether this instance is selected.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if this instance is selected; otherwise, <c>false</c>.
+        /// </value>
         public bool IsSelected
         {
             get { return (bool)GetValue(IsSelectedProperty); }
             set { SetValue(IsSelectedProperty, value); }
         }
 
+        /// <summary>
+        /// The is selection active property
+        /// </summary>
         public static readonly DependencyProperty IsSelectionActiveProperty = DependencyProperty.Register(
             "IsSelectionActive", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool)));
 
+        /// <summary>
+        /// Gets or sets a value indicating whether this instance is selection active.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if this instance is selection active; otherwise, <c>false</c>.
+        /// </value>
         public bool IsSelectionActive
         {
             get { return (bool)GetValue(IsSelectionActiveProperty); }
             set { SetValue(IsSelectionActiveProperty, value); }
         }
 
+        /// <summary>
+        /// The level margin property
+        /// </summary>
         public static readonly DependencyProperty LevelMarginProperty = DependencyProperty.Register(
             "LevelMargin", typeof(double), typeof(VirtualTreeViewItem), new PropertyMetadata(default(double)));
 
+        /// <summary>
+        /// Gets or sets the level margin.
+        /// This margin is multiplied by depth level to get left margin before actual item header
+        /// </summary>
+        /// <value>
+        /// The level margin.
+        /// </value>
         public double LevelMargin
         {
             get { return (double)GetValue(LevelMarginProperty); }
@@ -187,6 +228,9 @@ namespace VirtualTreeView
             DefaultStyleKeyProperty.OverrideMetadata(typeof(VirtualTreeViewItem), new FrameworkPropertyMetadata(typeof(VirtualTreeViewItem)));
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VirtualTreeViewItem"/> class.
+        /// </summary>
         public VirtualTreeViewItem()
         {
             INotifyCollectionChanged notifyCollectionChanged = Items;
@@ -231,7 +275,7 @@ namespace VirtualTreeView
             object item = ItemContainerGenerator.ItemFromContainer(container);
 
             if (item == DependencyProperty.UnsetValue
-                && ItemsControlFromItemContainer(container) == this
+                && ReferenceEquals(ItemsControlFromItemContainer(container), this)
                 //&& ((IGeneratorHost)this).IsItemItsOwnContainer(container)
                 )
             {

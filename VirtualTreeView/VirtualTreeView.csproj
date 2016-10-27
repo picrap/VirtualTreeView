@@ -25,6 +25,7 @@
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <DocumentationFile>bin\Debug\VirtualTreeView.XML</DocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -55,12 +56,12 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Collection\EnumerableExtensions.cs" />
     <Compile Include="Collection\IndexedCollection.cs" />
     <Compile Include="Collection\NotifyCollectionChangedExtensions.cs" />
     <Compile Include="Collection\FlatCollection.cs" />
     <Compile Include="MarginConverter.cs" />
     <Compile Include="Reflection\ObjectExtensions.cs" />
-    <Compile Include="TreeViewItemCollection.cs" />
     <Compile Include="VirtualTreeViewItemFlatCollection.cs" />
     <Compile Include="VirtualTreeViewItemHolder.cs" />
     <Compile Include="VirtualTreeViewItem.cs" />

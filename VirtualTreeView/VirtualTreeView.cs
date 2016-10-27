@@ -3,7 +3,6 @@
 
 namespace VirtualTreeView
 {
-    using System;
     using System.Collections;
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
@@ -11,28 +10,54 @@ namespace VirtualTreeView
     using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
-    using System.Windows.Controls.Primitives;
     using System.Windows.Data;
     using System.Windows.Markup;
-    using System.Windows.Media;
     using Collection;
     using Reflection;
 
+    /// <summary>
+    /// The VirtualTreeView is a line-by-line virtualized <see cref="TreeView"/>
+    /// It simply flattens the hierarchical input content to an <see cref="ItemsControl"/> with <see cref="VirtualizingStackPanel"/>
+    /// </summary>
+    /// <seealso cref="System.Windows.Controls.ItemsControl" />
     [StyleTypedProperty(Property = nameof(ItemContainerStyle), StyleTargetType = typeof(TreeViewItem))]
     [ContentProperty(nameof(HierarchicalItems))]
     public class VirtualTreeView : ItemsControl
     {
-        private readonly TreeViewItemCollection _hierarchicalItemsSource = new TreeViewItemCollection();
+        private readonly ObservableCollection<object> _hierarchicalItemsSource = new ObservableCollection<object>();
 
         private bool _hierarchicalItemsSourceBound;
 
+        /// <summary>
+        /// Gets the hierarchical items.
+        /// This is the content setter for hard-coded tree-view items
+        /// Which is totally pointless with this control, since its best comes with binding!
+        /// </summary>
+        /// <value>
+        /// The hierarchical items.
+        /// </value>
         public IList HierarchicalItems { get; } = new ObservableCollection<object>();
 
+        /// <summary>
+        /// Gets or sets a value indicating whether this instance is selection change active.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if this instance is selection change active; otherwise, <c>false</c>.
+        /// </value>
         public bool IsSelectionChangeActive { get; set; }
 
+        /// <summary>
+        /// The selected item property
+        /// </summary>
         public static readonly DependencyProperty SelectedItemProperty = DependencyProperty.Register(
             "SelectedItem", typeof(object), typeof(VirtualTreeView), new PropertyMetadata(default(object)));
 
+        /// <summary>
+        /// Gets or sets the selected item.
+        /// </summary>
+        /// <value>
+        /// The selected item.
+        /// </value>
         public object SelectedItem
         {
             get { return GetValue(SelectedItemProperty); }
@@ -82,6 +107,9 @@ namespace VirtualTreeView
             ItemsSourceProperty.OverrideMetadata(typeof(VirtualTreeView), new FrameworkPropertyMetadata(OnItemsSourceChanged));
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VirtualTreeView"/> class.
+        /// </summary>
         public VirtualTreeView()
         {
             FlatItems = new VirtualTreeViewItemFlatCollection(HierarchicalItems, Items);
@@ -117,7 +145,7 @@ namespace VirtualTreeView
                     FlatItemsSource = new VirtualTreeViewItemsSourceFlatCollection(_hierarchicalItemsSource, itemsSource, this);
                     _settingSource = true;
                     // now setting the flat source that the ItemsControl will use
-                    base.ItemsSource = itemsSource;
+                    ItemsSource = itemsSource;
                     _settingSource = false;
                 }
                 if (IsLoaded)
@@ -169,7 +197,7 @@ namespace VirtualTreeView
             {
                 if (selected)
                 {
-                    if (container != _selectedContainer)
+                    if (!ReferenceEquals(container, _selectedContainer))
                     {
                         oldValue = SelectedItem;
                         newValue = data;
@@ -188,7 +216,7 @@ namespace VirtualTreeView
                 }
                 else
                 {
-                    if (container == _selectedContainer)
+                    if (ReferenceEquals(container, _selectedContainer))
                     {
                         _selectedContainer.UpdateContainsSelection(false);
                         _selectedContainer = null;
@@ -333,7 +361,7 @@ namespace VirtualTreeView
             var container = CreateContainer(item);
             if (OptimizeItemBindings)
             {
-                var childrenBinding = BindingOperations.GetBinding(container, VirtualTreeViewItem.ItemsSourceProperty);
+                var childrenBinding = BindingOperations.GetBinding(container, ItemsSourceProperty);
                 if (childrenBinding != null && childrenBinding.Source == null && childrenBinding.RelativeSource == null && childrenBinding.ElementName == null
                     && childrenBinding.Path.Path.All(IsNotSpecial))
                 {
