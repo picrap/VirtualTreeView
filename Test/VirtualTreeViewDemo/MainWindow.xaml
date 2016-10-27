@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:VirtualTreeViewDemo"
         xmlns:vtv="urn:VirtualTreeView"
         mc:Ignorable="d"
-        Title="MainWindow" Height="768" Width="1024">
+        Title="VirtualTreeView" Height="768" Width="1024" Icon="VirtualTreeView.ico">
 
     <Window.Resources>
         <Style x:Key="Header" TargetType="{x:Type TextBlock}" >
@@ -26,6 +26,13 @@
                     </TransformGroup>
                 </Setter.Value>
             </Setter>
+        </Style>
+        <Style x:Key="Comment" TargetType="{x:Type TextBlock}">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="Foreground" Value="LightBlue"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,0,20,4" />
         </Style>
     </Window.Resources>
 
@@ -71,6 +78,7 @@
             </TreeViewItem>
         </TreeView>
 
+        <TextBlock Grid.Column="2" Grid.Row="1" Style="{StaticResource Comment}" Text="This works but is pointless"/>
         <vtv:VirtualTreeView Grid.Column="2" Grid.Row="1">
             <vtv:VirtualTreeViewItem Header="1">
                 <vtv:VirtualTreeViewItem Header="1.1"/>
@@ -96,7 +104,14 @@
             </vtv:VirtualTreeViewItem>
         </vtv:VirtualTreeView>
 
-        <TreeView Grid.Column="1" Grid.Row="2" ItemsSource="{x:Static local:DemoItem.Root}">
+        <TreeView Grid.Column="1" Grid.Row="2" ItemsSource="{x:Static local:DemoItem.Root}"
+              VirtualizingPanel.IsContainerVirtualizable="true" VirtualizingPanel.IsVirtualizing="false" VirtualizingPanel.IsVirtualizingWhenGrouping="true"
+                  >
+            <TreeView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel />
+                </ItemsPanelTemplate>
+            </TreeView.ItemsPanel>
             <TreeView.ItemContainerStyle>
                 <Style TargetType="TreeViewItem">
                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
@@ -110,7 +125,12 @@
                 </HierarchicalDataTemplate>
             </TreeView.ItemTemplate>
         </TreeView>
+        <TextBlock Grid.Column="1" Grid.Row="2" Style="{StaticResource Comment}">
+            Admire slowness of original TreeView<LineBreak/>
+            (you can also admire memory use from task manager)
+        </TextBlock>
 
+        <TextBlock Grid.Column="2" Grid.Row="2" Style="{StaticResource Comment}" Text="Full speed here, thanks VirtualTreeView!"/>
         <vtv:VirtualTreeView Grid.Column="2" Grid.Row="2" ItemsSource="{x:Static local:DemoItem.Root2}">
             <vtv:VirtualTreeView.ItemContainerStyle>
                 <Style TargetType="{x:Type vtv:VirtualTreeViewItem}">
