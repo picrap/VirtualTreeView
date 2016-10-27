@@ -58,8 +58,6 @@ namespace VirtualTreeView
         /// </summary>
         internal VirtualTreeViewItem ParentTreeViewItem { get; set; }
 
-        internal bool IsGenerated { get; set; }
-
         private int? _depth;
 
         /// <summary>
@@ -74,18 +72,14 @@ namespace VirtualTreeView
             {
                 if (!_depth.HasValue)
                 {
-                    if (IsGenerated)
-                        _depth = ParentTreeView.GetDepth(this);
-                    else
-                    {
-                        int depth = 0;
-                        for (var parent = ParentTreeViewItem; parent != null; parent = parent.ParentTreeViewItem)
-                            depth++;
-                        _depth = depth;
-                    }
+                    int depth = 0;
+                    for (var parent = ParentTreeViewItem; parent != null; parent = parent.ParentTreeViewItem)
+                        depth++;
+                    _depth = depth;
                 }
                 return _depth.Value;
             }
+            set { _depth = value; }
         }
 
         /// <summary>

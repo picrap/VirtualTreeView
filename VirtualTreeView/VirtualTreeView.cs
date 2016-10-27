@@ -214,11 +214,39 @@ namespace VirtualTreeView
             }
         }
 
+        /// <summary>
+        /// Creates or identifies the element that is used to display the given item.
+        /// </summary>
+        /// <returns>
+        /// The element that is used to display the given item.
+        /// </returns>
         protected override DependencyObject GetContainerForItemOverride()
         {
-            return new VirtualTreeViewItem { ParentTreeView = this, IsGenerated = true };
+            return new VirtualTreeViewItem();
         }
 
+        /// <summary>
+        /// Prepares the specified element to display the specified item.
+        /// </summary>
+        /// <param name="element">Element used to display the specified item.</param>
+        /// <param name="item">Specified item.</param>
+        protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
+        {
+            var treeViewItem = element as VirtualTreeViewItem;
+            if (treeViewItem != null)
+            {
+                treeViewItem.ParentTreeView = this;
+                treeViewItem.Depth = GetDepth(treeViewItem);
+            }
+            base.PrepareContainerForItemOverride(element, item);
+        }
+
+        /// <summary>
+        /// Gets the depth of the given item.
+        /// This is used by binding generated items
+        /// </summary>
+        /// <param name="treeViewItem">The tree view item.</param>
+        /// <returns></returns>
         internal int GetDepth(VirtualTreeViewItem treeViewItem)
         {
             int depth = -1; // starting from -1 here, cause the dataContext below will be non-null at least once
