@@ -38,7 +38,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="item">The item.</param>
         /// <returns></returns>
-        protected override IList GetChildren(object item) => _treeView.GetChildren(item);
+        protected override IEnumerable GetChildren(object item) => _treeView.GetChildren(item);
 
         /// <summary>
         /// Gets the container for item.

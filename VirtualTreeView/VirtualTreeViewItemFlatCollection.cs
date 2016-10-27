@@ -40,7 +40,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="item">The item.</param>
         /// <returns></returns>
-        protected override IList GetChildren(object item)
+        protected override IEnumerable GetChildren(object item)
         {
             var itemsControl = item as ItemsControl;
             return itemsControl?.Items;

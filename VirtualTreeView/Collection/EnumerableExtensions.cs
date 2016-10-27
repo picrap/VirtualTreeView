@@ -48,5 +48,21 @@ namespace VirtualTreeView.Collection
 
             return new[] { list[0], list[list.Count - 1] };
         }
+
+        /// <summary>
+        /// Gets a value indicating whether the enumerable has elements.
+        /// </summary>
+        /// <param name="enumerable">The enumerable.</param>
+        /// <returns></returns>
+        public static bool Any(this IEnumerable enumerable)
+        {
+            var list = enumerable as IList;
+            if (list != null)
+                return list.Count > 0;
+
+            var e = enumerable.GetEnumerator();
+            e.Reset();
+            return e.MoveNext();
+        }
     }
 }

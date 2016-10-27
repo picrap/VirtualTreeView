@@ -7,6 +7,7 @@ namespace VirtualTreeView.Collection
     using System.Collections;
     using System.Collections.Generic;
     using System.Collections.Specialized;
+    using Reader;
     using Reflection;
 
     /// <summary>
@@ -39,7 +40,7 @@ namespace VirtualTreeView.Collection
                 throw new ArgumentException(@"Must be empty", nameof(target));
             _target = target;
             source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += (o, args) => OnSourceCollectionChanged(null, source, args));
-            InsertItems(0, source, null);
+            InsertItems(0, CollectionReader.Create(source), null);
         }
 
         /// <summary>
@@ -57,12 +58,13 @@ namespace VirtualTreeView.Collection
         /// <param name="item">The item.</param>
         /// <returns></returns>
         protected abstract bool GetIsExpanded(object item);
+
         /// <summary>
         /// Gets the item children.
         /// </summary>
         /// <param name="item">The item.</param>
         /// <returns></returns>
-        protected abstract IList GetChildren(object item);
+        protected abstract IEnumerable GetChildren(object item);
 
         /// <summary>
         /// Gets the container for item.
@@ -86,10 +88,10 @@ namespace VirtualTreeView.Collection
         /// <param name="item">The item.</param>
         public void Expand(object item)
         {
-            var itemChildren = GetChildren(item);
+            var itemChildren = CollectionReader.Create(GetChildren(item));
             if (IsExpanded(itemChildren))
                 return;
-            if (itemChildren != null && itemChildren.Count > 0)
+            if (itemChildren.Any)
             {
                 var itemIndex = GetItemIndex(item);
                 InsertItems(itemIndex + 1, itemChildren, item);
@@ -105,15 +107,15 @@ namespace VirtualTreeView.Collection
         /// </returns>
         public bool IsExpanded(object item)
         {
-            return IsExpanded(GetChildren(item));
+            return IsExpanded(CollectionReader.Create(GetChildren(item)));
         }
 
-        private bool IsExpanded(IList itemChildren)
+        private bool IsExpanded(CollectionReader itemChildren)
         {
-            if (itemChildren == null || itemChildren.Count == 0)
+            if (!itemChildren.Any)
                 return false;
 
-            return GetItemIndex(itemChildren[0]) >= 0;
+            return GetItemIndex(itemChildren.First) >= 0;
         }
 
         /// <summary>
@@ -160,26 +162,26 @@ namespace VirtualTreeView.Collection
             _parentsByItems[item] = parent;
             var itemChildren = GetChildren(item);
             if (GetIsExpanded(item) && itemChildren != null)
-                count += InsertItems(index + 1, itemChildren, item);
+                count += InsertItems(index + 1, CollectionReader.Create(itemChildren), item);
             itemChildren.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnSourceCollectionChanged(item, itemChildren, args));
             return count;
         }
 
-        private void OnSourceCollectionChanged(object parent, IList collection, NotifyCollectionChangedEventArgs e)
+        private void OnSourceCollectionChanged(object parent, IEnumerable collection, NotifyCollectionChangedEventArgs e)
         {
             if (parent != null && !GetIsExpanded(parent))
                 return;
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
-                    InsertItems(GetInsertIndex(collection, e.NewStartingIndex), e.NewItems, parent);
+                    InsertItems(GetInsertIndex(CollectionReader.Create(collection), e.NewStartingIndex), CollectionReader.Create(e.NewItems), parent);
                     break;
                 case NotifyCollectionChangedAction.Remove:
                     DeleteItems(e.OldItems);
                     break;
                 case NotifyCollectionChangedAction.Replace:
                     DeleteItems(e.OldItems);
-                    InsertItems(GetInsertIndex(collection, e.NewStartingIndex), e.NewItems, parent);
+                    InsertItems(GetInsertIndex(CollectionReader.Create(collection), e.NewStartingIndex), CollectionReader.Create(e.NewItems), parent);
                     break;
                 case NotifyCollectionChangedAction.Move:
                     throw new NotImplementedException();
@@ -188,8 +190,8 @@ namespace VirtualTreeView.Collection
                         Clear();
                     else
                         Collapse(parent);
-                    var children = GetChildren(parent);
-                    if (children != null)
+                    var children = CollectionReader.Create(GetChildren(parent));
+                    if (children.Any)
                         InsertItems(GetItemIndex(parent) + 1, children, parent);
                     break;
                 default:
@@ -213,10 +215,10 @@ namespace VirtualTreeView.Collection
             DeleteItems(firstIndex, lastChildIndex - firstIndex + 1);
         }
 
-        private int InsertItems(int index, IEnumerable items, object parent)
+        private int InsertItems(int index, CollectionReader items, object parent)
         {
             var startIndex = index;
-            foreach (var i in items)
+            foreach (var i in items.All)
                 index += InsertItem(index, i, parent);
             return index - startIndex;
         }
@@ -236,11 +238,11 @@ namespace VirtualTreeView.Collection
         /// <param name="collection">The collection.</param>
         /// <param name="childIndex">Index of the child.</param>
         /// <returns></returns>
-        private int GetInsertIndex(IList collection, int childIndex)
+        private int GetInsertIndex(CollectionReader collection, int childIndex)
         {
             if (childIndex == 0)
                 return 0;
-            return GetLastChildIndex(collection[childIndex - 1]) + 1;
+            return GetLastChildIndex(collection.At(childIndex - 1)) + 1;
         }
 
         /// <summary>
@@ -250,11 +252,11 @@ namespace VirtualTreeView.Collection
         /// <returns></returns>
         private int GetLastChildIndex(object item)
         {
-            var itemChildren = GetChildren(item);
-            if (itemChildren == null || itemChildren.Count == 0 || !IsExpanded(itemChildren))
+            var itemChildren = CollectionReader.Create(GetChildren(item));
+            if (!itemChildren.Any || !IsExpanded(itemChildren))
                 return GetItemIndex(item);
 
-            return GetLastChildIndex(itemChildren[itemChildren.Count - 1]);
+            return GetLastChildIndex(itemChildren.Last);
         }
 
         /// <summary>
