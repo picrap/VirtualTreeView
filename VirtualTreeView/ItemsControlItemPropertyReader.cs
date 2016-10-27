@@ -58,11 +58,11 @@ namespace VirtualTreeView
         /// <returns></returns>
         private bool GetFromGeneratedContainer(object item, ref TValue value)
         {
-            var treeViewItem = GetGeneratedItem(item);
-            if (treeViewItem == null)
+            var container = GetGeneratedItem(item);
+            if (container == null)
                 return false;
 
-            value = (TValue)treeViewItem.GetValue(_dependencyProperty);
+            value = (TValue)container.GetValue(_dependencyProperty);
             return true;
         }
 

@@ -8,13 +8,13 @@ namespace VirtualTreeView
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
     using System.ComponentModel;
-    using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Controls.Primitives;
-    using System.Windows.Data;
+    using System.Windows.Input;
     using System.Windows.Markup;
     using Collection;
+    using MS.Internal.KnownBoxes;
     using Reflection;
 
     /// <summary>
@@ -41,18 +41,10 @@ namespace VirtualTreeView
         public IList HierarchicalItems { get; } = new ObservableCollection<object>();
 
         /// <summary>
-        /// Gets or sets a value indicating whether this instance is selection change active.
-        /// </summary>
-        /// <value>
-        /// <c>true</c> if this instance is selection change active; otherwise, <c>false</c>.
-        /// </value>
-        public bool IsSelectionChangeActive { get; set; }
-
-        /// <summary>
         /// The selected item property
         /// </summary>
         public static readonly DependencyProperty SelectedItemProperty = DependencyProperty.Register(
-            "SelectedItem", typeof(object), typeof(VirtualTreeView), new PropertyMetadata(default(object)));
+            "SelectedItem", typeof(object), typeof(VirtualTreeView), new PropertyMetadata(default(object), (d, e) => ((VirtualTreeView)d).OnSelectedItemChanged(e.OldValue, e.NewValue)));
 
         /// <summary>
         /// Gets or sets the selected item.
@@ -180,68 +172,10 @@ namespace VirtualTreeView
                 FlatItems.Collapse(item);
         }
 
-        private VirtualTreeViewItem _selectedContainer;
-
-        internal void ChangeSelection(object data, VirtualTreeViewItem container, bool selected)
+        private void OnSelectedItemChanged(object oldValue, object newValue)
         {
-            if (IsSelectionChangeActive)
-            {
-                return;
-            }
-
-            object oldValue = null;
-            object newValue = null;
-            bool changed = false;
-
-            IsSelectionChangeActive = true;
-
-            try
-            {
-                if (selected)
-                {
-                    if (!ReferenceEquals(container, _selectedContainer))
-                    {
-                        oldValue = SelectedItem;
-                        newValue = data;
-
-                        if (_selectedContainer != null)
-                        {
-                            _selectedContainer.IsSelected = false;
-                            _selectedContainer.UpdateContainsSelection(false);
-                        }
-                        _selectedContainer = container;
-                        _selectedContainer.UpdateContainsSelection(true);
-                        SelectedItem = data;
-                        //UpdateSelectedValue(data);
-                        changed = true;
-                    }
-                }
-                else
-                {
-                    if (ReferenceEquals(container, _selectedContainer))
-                    {
-                        _selectedContainer.UpdateContainsSelection(false);
-                        _selectedContainer = null;
-                        SelectedItem = null;
-
-                        oldValue = data;
-                        changed = true;
-                    }
-                }
-
-                if (container.IsSelected != selected)
-                    container.IsSelected = selected;
-            }
-            finally
-            {
-                IsSelectionChangeActive = false;
-            }
-
-            if (changed)
-            {
-                var e = new RoutedPropertyChangedEventArgs<object>(oldValue, newValue, SelectedItemChangedEvent);
-                OnSelectedItemChanged(e);
-            }
+            var e = new RoutedPropertyChangedEventArgs<object>(oldValue, newValue, SelectedItemChangedEvent);
+            OnSelectedItemChanged(e);
         }
 
         /// <summary>
@@ -302,6 +236,28 @@ namespace VirtualTreeView
             if (_childrenPropertyReader == null)
                 _childrenPropertyReader = new ItemsControlItemPropertyReader<IEnumerable>(this, VirtualTreeViewItem.ItemsSourceProperty, allowSourceProperties: OptimizeItemBindings);
             return _childrenPropertyReader.Get(item);
+        }
+
+        private bool _mutex;
+
+        /// <summary>
+        /// Performs an action from a mutex: a nested action won't be run.
+        /// </summary>
+        /// <param name="action">The action.</param>
+        public void MutexDo(Action action)
+        {
+            if (!_mutex)
+            {
+                try
+                {
+                    _mutex = true;
+                    action();
+                }
+                finally
+                {
+                    _mutex = false;
+                }
+            }
         }
     }
 }

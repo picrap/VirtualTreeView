@@ -7,7 +7,9 @@ namespace VirtualTreeView
     using System.ComponentModel;
     using System.Windows;
     using System.Windows.Controls;
+    using System.Windows.Input;
     using Collection;
+    using MS.Internal.KnownBoxes;
     using Reflection;
 
     /// <summary>
@@ -19,8 +21,8 @@ namespace VirtualTreeView
         /// <summary>
         /// The is expanded property
         /// </summary>
-        public static readonly DependencyProperty IsExpandedProperty = DependencyProperty.Register(
-            "IsExpanded", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool), OnIsExpandedChanged));
+        public static readonly DependencyProperty IsExpandedProperty
+            = DependencyProperty.Register("IsExpanded", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool), OnIsExpandedChanged));
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is expanded.
@@ -37,8 +39,9 @@ namespace VirtualTreeView
         /// <summary>
         /// The is selected property
         /// </summary>
-        public static readonly DependencyProperty IsSelectedProperty = DependencyProperty.Register(
-            "IsSelected", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool), OnIsSelectedChanged));
+        public static readonly DependencyProperty IsSelectedProperty
+            = DependencyProperty.Register("IsSelected", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool),
+                (d, e) => ((VirtualTreeViewItem)d).OnIsSelectedChanged((bool)e.NewValue)));
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is selected.
@@ -55,8 +58,8 @@ namespace VirtualTreeView
         /// <summary>
         /// The is selection active property
         /// </summary>
-        public static readonly DependencyProperty IsSelectionActiveProperty = DependencyProperty.Register(
-            "IsSelectionActive", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool)));
+        public static readonly DependencyProperty IsSelectionActiveProperty
+            = DependencyProperty.Register("IsSelectionActive", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(default(bool)));
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is selection active.
@@ -73,8 +76,8 @@ namespace VirtualTreeView
         /// <summary>
         /// The level margin property
         /// </summary>
-        public static readonly DependencyProperty LevelMarginProperty = DependencyProperty.Register(
-            "LevelMargin", typeof(double), typeof(VirtualTreeViewItem), new PropertyMetadata(default(double)));
+        public static readonly DependencyProperty LevelMarginProperty
+            = DependencyProperty.Register("LevelMargin", typeof(double), typeof(VirtualTreeViewItem), new PropertyMetadata(default(double)));
 
         /// <summary>
         /// Gets or sets the level margin.
@@ -99,6 +102,8 @@ namespace VirtualTreeView
         /// </summary>
         internal VirtualTreeViewItem ParentTreeViewItem { get; set; }
 
+        private bool _isGenerated;
+
         private int? _depth;
 
         /// <summary>
@@ -120,7 +125,11 @@ namespace VirtualTreeView
                 }
                 return _depth.Value;
             }
-            set { _depth = value; }
+            set
+            {
+                _depth = value;
+                _isGenerated = true;
+            }
         }
 
         /// <summary>
@@ -257,60 +266,107 @@ namespace VirtualTreeView
                 item.OnCollapsed(new RoutedEventArgs(CollapsedEvent, item));
         }
 
-        private static void OnIsSelectedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        /// <summary>
+        ///     Called when the left mouse button is pressed down.
+        /// </summary>
+        /// <param name="e">Event arguments</param>
+        protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
-            var item = (VirtualTreeViewItem)d;
-            bool isSelected = (bool)e.NewValue;
-
-            item.Select(isSelected);
-
-            if (isSelected)
-                item.OnSelected(new RoutedEventArgs(SelectedEvent, item));
-            else
-                item.OnUnselected(new RoutedEventArgs(UnselectedEvent, item));
-        }
-
-        internal object GetItemOrContainerFromContainer(DependencyObject container)
-        {
-            object item = ItemContainerGenerator.ItemFromContainer(container);
-
-            if (item == DependencyProperty.UnsetValue
-                && ReferenceEquals(ItemsControlFromItemContainer(container), this)
-                //&& ((IGeneratorHost)this).IsItemItsOwnContainer(container)
-                )
+            if (!e.Handled && IsEnabled)
             {
-                item = container;
-            }
-
-            return item;
-        }
-
-
-        private void Select(bool selected)
-        {
-            var treeView = ParentTreeView;
-            var parent = ParentTreeViewItem;
-            if (treeView != null && parent != null && !treeView.IsSelectionChangeActive)
-            {
-                // Give the TreeView a reference to this container and its data
-                object data = parent.GetItemOrContainerFromContainer(this);
-                treeView.ChangeSelection(data, this, selected);
-
-                // Making focus of TreeViewItem synchronize with selection if needed.
-                if (selected && treeView.IsKeyboardFocusWithin && !IsKeyboardFocusWithin)
+                if (Focus())
                 {
-                    Focus();
+                    e.Handled = true;
+                }
+
+                if (e.ClickCount % 2 == 0)
+                {
+                    IsExpanded = !IsExpanded;
+                    e.Handled = true;
                 }
             }
+            base.OnMouseLeftButtonDown(e);
         }
-        internal void UpdateContainsSelection(bool selected)
+
+        /// <summary>
+        /// Invoked whenever an unhandled <see cref="E:System.Windows.UIElement.GotFocus" /> event reaches this element in its route.
+        /// </summary>
+        /// <param name="e">The <see cref="T:System.Windows.RoutedEventArgs" /> that contains the event data.</param>
+        protected override void OnGotFocus(RoutedEventArgs e)
         {
-            //TreeViewItem parent = ParentTreeViewItem;
-            //while (parent != null)
-            //{
-            //    parent.ContainsSelection = selected;
-            //    parent = parent.ParentTreeViewItem;
-            //}
+            IsSelected = true;
+            base.OnGotFocus(e);
+        }
+
+        private void OnIsSelectedChanged(bool selected)
+        {
+            var treeView = ParentTreeView;
+            if (treeView == null)
+                return;
+
+            if (selected)
+            {
+                if (treeView.SelectedItem != null)
+                {
+                    // behavior is different if item is generated (comes from data binding)
+                    // in generated mode, the SelectedItem points to item source, in simple mode it points to
+                    var container = GetContainerFromItem(treeView.SelectedItem);
+                    if (container != null)
+                        treeView.MutexDo(() => container.IsSelected = false); // because unselected must not be notified when another takes place
+                }
+                treeView.SelectedItem = GetItemFromContainer(this);
+
+                if (treeView.IsKeyboardFocusWithin && !IsKeyboardFocusWithin)
+                    Focus();
+
+                OnSelected(new RoutedEventArgs(SelectedEvent, this));
+            }
+            else
+            {
+                if (ReferenceEquals(treeView.SelectedItem, DataContext))
+                    treeView.MutexDo(() => treeView.SelectedItem = null);
+
+                OnUnselected(new RoutedEventArgs(UnselectedEvent, this));
+            }
+        }
+
+        /// <summary>
+        /// Gets the item from container.
+        /// </summary>
+        /// <returns></returns>
+        private object GetItemFromContainer(VirtualTreeViewItem container)
+        {
+            return container._isGenerated ? container.DataContext : container;
+        }
+
+        /// <summary>
+        /// Gets the container from item.
+        /// </summary>
+        /// <param name="item">The item.</param>
+        /// <returns></returns>
+        private VirtualTreeViewItem GetContainerFromItem(object item)
+        {
+            return _isGenerated ? ParentTreeView.ItemContainerGenerator.ContainerFromItem(item) as VirtualTreeViewItem : item as VirtualTreeViewItem;
+        }
+
+        /// <summary>
+        /// Invoked when an unhandled <see cref="E:System.Windows.Input.Keyboard.GotKeyboardFocus" /> attached event reaches an element in its route that is derived from this class. Implement this method to add class handling for this event.
+        /// </summary>
+        /// <param name="e">The <see cref="T:System.Windows.Input.KeyboardFocusChangedEventArgs" /> that contains the event data.</param>
+        protected override void OnGotKeyboardFocus(KeyboardFocusChangedEventArgs e)
+        {
+            IsSelectionActive = true;
+            base.OnGotKeyboardFocus(e);
+        }
+
+        /// <summary>
+        /// Invoked when an unhandled <see cref="E:System.Windows.Input.Keyboard.LostKeyboardFocus" /> attached event reaches an element in its route that is derived from this class. Implement this method to add class handling for this event.
+        /// </summary>
+        /// <param name="e">The <see cref="T:System.Windows.Input.KeyboardFocusChangedEventArgs" /> that contains event data.</param>
+        protected override void OnLostKeyboardFocus(KeyboardFocusChangedEventArgs e)
+        {
+            IsSelectionActive = false;
+            base.OnLostKeyboardFocus(e);
         }
     }
 }
