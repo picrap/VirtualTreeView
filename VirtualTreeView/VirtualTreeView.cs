@@ -8,6 +8,7 @@ namespace VirtualTreeView
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
     using System.ComponentModel;
+    using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Controls.Primitives;
@@ -107,9 +108,16 @@ namespace VirtualTreeView
         public VirtualTreeView()
         {
             FlatItems = new VirtualTreeViewItemFlatCollection(HierarchicalItems, Items);
-            HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentTreeView = this)));
+            //HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentTreeView = this)));
+            HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsCollectionChanged);
         }
 
+        private void OnHierarchicalItemsCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            foreach (var item in e.GetAddedItems(sender).OfType<VirtualTreeViewItem>())
+                item.ParentTreeView = this;
+        }
+        
         private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var value = (IEnumerable)e.NewValue;

@@ -5,6 +5,7 @@ namespace VirtualTreeView
 {
     using System.Collections.Specialized;
     using System.ComponentModel;
+    using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Input;
@@ -243,13 +244,18 @@ namespace VirtualTreeView
         public VirtualTreeViewItem()
         {
             INotifyCollectionChanged notifyCollectionChanged = Items;
-            notifyCollectionChanged.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i =>
-            {
-                i.ParentTreeViewItem = this;
-                i.ParentTreeView = ParentTreeView;
-            }));
+            notifyCollectionChanged.CollectionChanged += OnItemsCollectionChanged;
         }
 
+        private void OnItemsCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            foreach (var item in e.GetAddedItems(sender).OfType<VirtualTreeViewItem>())
+            {
+                item.ParentTreeView = ParentTreeView;
+                item.ParentTreeViewItem = this;
+            }
+        }
+        
         private static void OnIsExpandedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var item = (VirtualTreeViewItem)d;

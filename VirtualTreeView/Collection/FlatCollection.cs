@@ -40,7 +40,8 @@ namespace VirtualTreeView.Collection
                 throw new ArgumentException(@"Must be empty", nameof(target));
             _target = target;
             var sourceReader = CollectionReader.Create(source);
-            source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += (o, args) => OnSourceCollectionChanged(null, sourceReader, args));
+            _ownersByCollections[source] = null;
+            source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnSourceCollectionChanged);
             InsertItems(0, sourceReader, null);
         }
 
@@ -134,6 +135,7 @@ namespace VirtualTreeView.Collection
         }
 
         private readonly IDictionary<object, object> _parentsByItems = new Dictionary<object, object>();
+        private readonly IDictionary<object, object> _ownersByCollections = new Dictionary<object, object>();
 
         /// <summary>
         /// Gets the parent item from given item or null for topmost items
@@ -162,11 +164,21 @@ namespace VirtualTreeView.Collection
             _target.Insert(index, containerForItem);
             _parentsByItems[item] = parent;
             var itemChildren = GetChildren(item);
-            var itemChildrenReader = CollectionReader.Create(itemChildren);
-            if (GetIsExpanded(item) && itemChildren != null)
-                count += InsertItems(index + 1, itemChildrenReader, item);
-            itemChildren.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnSourceCollectionChanged(item, itemChildrenReader, args));
+            if (itemChildren != null)
+            {
+                var itemChildrenReader = CollectionReader.Create(itemChildren);
+                if (GetIsExpanded(item))
+                    count += InsertItems(index + 1, itemChildrenReader, item);
+                _ownersByCollections[itemChildren] = item;
+                itemChildren.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += OnSourceCollectionChanged);
+            }
             return count;
+        }
+
+        private void OnSourceCollectionChanged(object itemChildren, NotifyCollectionChangedEventArgs e)
+        {
+            var item = _ownersByCollections[itemChildren];
+            OnSourceCollectionChanged(item, CollectionReader.Create((IEnumerable)itemChildren), e);
         }
 
         private void OnSourceCollectionChanged(object parent, CollectionReader collection, NotifyCollectionChangedEventArgs e)
@@ -228,7 +240,15 @@ namespace VirtualTreeView.Collection
         {
             while (count-- > 0)
             {
-                _parentsByItems.Remove(_target[index]);
+                var container = _target[index];
+                _parentsByItems.Remove(container);
+                var item = GetItemFromContainer(container);
+                var itemChildren = GetChildren(item);
+                if (itemChildren != null)
+                {
+                    _ownersByCollections.Remove(itemChildren);
+                    itemChildren.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged -= OnSourceCollectionChanged);
+                }
                 _target.RemoveAt(index);
             }
         }
