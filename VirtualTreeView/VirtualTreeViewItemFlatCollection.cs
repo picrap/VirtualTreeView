@@ -17,7 +17,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="source">The source.</param>
         /// <param name="target">The target.</param>
-        public VirtualTreeViewItemFlatCollection(IList source, IList target)
+        public VirtualTreeViewItemFlatCollection(IEnumerable source, IList target)
             : base(source, target)
         {
         }

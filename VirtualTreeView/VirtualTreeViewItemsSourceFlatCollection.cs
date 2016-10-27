@@ -20,7 +20,7 @@ namespace VirtualTreeView
         /// <param name="source">The source.</param>
         /// <param name="target">The target.</param>
         /// <param name="treeView">The tree view.</param>
-        public VirtualTreeViewItemsSourceFlatCollection(IList source, IList target, VirtualTreeView treeView)
+        public VirtualTreeViewItemsSourceFlatCollection(IEnumerable source, IList target, VirtualTreeView treeView)
             : base(source, target)
         {
             _treeView = treeView;

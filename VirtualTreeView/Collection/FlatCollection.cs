@@ -30,7 +30,7 @@ namespace VirtualTreeView.Collection
         /// <exception cref="ArgumentNullException"><paramref name="source" />.</exception>
         /// <exception cref="ArgumentNullException"><paramref name="source" />.</exception>
         /// <exception cref="ArgumentException">Must be empty</exception>
-        protected FlatCollection(IList source, IList target)
+        protected FlatCollection(IEnumerable source, IList target)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -39,8 +39,9 @@ namespace VirtualTreeView.Collection
             if (target.Count > 0)
                 throw new ArgumentException(@"Must be empty", nameof(target));
             _target = target;
-            source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += (o, args) => OnSourceCollectionChanged(null, source, args));
-            InsertItems(0, CollectionReader.Create(source), null);
+            var sourceReader = CollectionReader.Create(source);
+            source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += (o, args) => OnSourceCollectionChanged(null, sourceReader, args));
+            InsertItems(0, sourceReader, null);
         }
 
         /// <summary>
@@ -161,29 +162,31 @@ namespace VirtualTreeView.Collection
             _target.Insert(index, containerForItem);
             _parentsByItems[item] = parent;
             var itemChildren = GetChildren(item);
+            var itemChildrenReader = CollectionReader.Create(itemChildren);
             if (GetIsExpanded(item) && itemChildren != null)
-                count += InsertItems(index + 1, CollectionReader.Create(itemChildren), item);
-            itemChildren.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnSourceCollectionChanged(item, itemChildren, args));
+                count += InsertItems(index + 1, itemChildrenReader, item);
+            itemChildren.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += (sender, args) => OnSourceCollectionChanged(item, itemChildrenReader, args));
             return count;
         }
 
-        private void OnSourceCollectionChanged(object parent, IEnumerable collection, NotifyCollectionChangedEventArgs e)
+        private void OnSourceCollectionChanged(object parent, CollectionReader collection, NotifyCollectionChangedEventArgs e)
         {
             if (parent != null && !GetIsExpanded(parent))
                 return;
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
-                    InsertItems(GetInsertIndex(CollectionReader.Create(collection), e.NewStartingIndex), CollectionReader.Create(e.NewItems), parent);
+                    InsertItems(GetInsertIndex(collection, e.NewStartingIndex), CollectionReader.Create(e.NewItems), parent);
                     break;
                 case NotifyCollectionChangedAction.Remove:
-                    DeleteItems(e.OldItems);
+                    DeleteItems(CollectionReader.Create(e.OldItems));
                     break;
                 case NotifyCollectionChangedAction.Replace:
-                    DeleteItems(e.OldItems);
-                    InsertItems(GetInsertIndex(CollectionReader.Create(collection), e.NewStartingIndex), CollectionReader.Create(e.NewItems), parent);
+                    DeleteItems(CollectionReader.Create(e.OldItems));
+                    InsertItems(GetInsertIndex(collection, e.NewStartingIndex), CollectionReader.Create(e.NewItems), parent);
                     break;
                 case NotifyCollectionChangedAction.Move:
+                    // :confounded:
                     throw new NotImplementedException();
                 case NotifyCollectionChangedAction.Reset:
                     if (parent == null)
@@ -204,13 +207,11 @@ namespace VirtualTreeView.Collection
         /// This assumes that items are in sorted order and consecutives
         /// </summary>
         /// <param name="items">The items.</param>
-        private void DeleteItems(IEnumerable items)
+        private void DeleteItems(CollectionReader items)
         {
             // the idea is: delete all items from first item to last item child
-            var firstAndLast = items.FirstAndLast();
-
-            var firstIndex = GetItemIndex(firstAndLast[0]);
-            var lastChildIndex = GetLastChildIndex(firstAndLast[1]);
+            var firstIndex = GetItemIndex(items.First);
+            var lastChildIndex = GetLastChildIndex(items.Last);
 
             DeleteItems(firstIndex, lastChildIndex - firstIndex + 1);
         }

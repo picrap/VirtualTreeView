@@ -337,14 +337,14 @@ namespace VirtualTreeView
             return container.IsExpanded;
         }
 
-        internal IList GetChildren(object item)
+        internal IEnumerable GetChildren(object item)
         {
-            return GetGeneratedContainer(item)?.ItemsSource as IList ?? GetTrivialChildren(item) ?? GetNonTrivialChildren(item);
+            return GetGeneratedContainer(item)?.ItemsSource ?? GetTrivialChildren(item) ?? GetNonTrivialChildren(item);
         }
 
         private string _childrenSourceProperty;
 
-        private IList GetTrivialChildren(object item)
+        private IEnumerable GetTrivialChildren(object item)
         {
             if (!OptimizeItemBindings || _childrenSourceProperty == null)
                 return null;
@@ -353,10 +353,10 @@ namespace VirtualTreeView
             if (childrenSourceProperty == null)
                 return null;
 
-            return childrenSourceProperty.GetValue(item) as IList;
+            return (IEnumerable) childrenSourceProperty.GetValue(item);
         }
 
-        private IList GetNonTrivialChildren(object item)
+        private IEnumerable GetNonTrivialChildren(object item)
         {
             var container = CreateContainer(item);
             if (OptimizeItemBindings)
@@ -368,7 +368,7 @@ namespace VirtualTreeView
                     _childrenSourceProperty = childrenBinding.Path.Path;
                 }
             }
-            return (IList)container.ItemsSource;
+            return container.ItemsSource;
         }
 
         private static bool IsNotSpecial(char c)
