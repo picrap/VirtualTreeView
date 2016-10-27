@@ -3,6 +3,7 @@
 
 namespace VirtualTreeView
 {
+    using System;
     using System.Collections;
     using System.Collections.ObjectModel;
     using System.Collections.Specialized;
@@ -10,6 +11,7 @@ namespace VirtualTreeView
     using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
+    using System.Windows.Controls.Primitives;
     using System.Windows.Data;
     using System.Windows.Markup;
     using Collection;
@@ -283,97 +285,23 @@ namespace VirtualTreeView
             return depth;
         }
 
-        private VirtualTreeViewItem GetGeneratedContainer(object item)
-        {
-            return (VirtualTreeViewItem)ItemContainerGenerator.ContainerFromItem(item);
-        }
-
-        private VirtualTreeViewItem CreateContainer(object item)
-        {
-            VirtualTreeViewItem treeViewItem;
-            // otherwise create with two sources:
-            // - template which may bind the ItemsSource property
-            // - style    which may bind the IsExpanded  property
-            var hierarchicalDataTemplate = ItemTemplate as HierarchicalDataTemplate;
-            treeViewItem = new VirtualTreeViewItem { DataContext = item };
-            if (hierarchicalDataTemplate?.ItemsSource != null)
-                BindingOperations.SetBinding(treeViewItem, ItemsSourceProperty, hierarchicalDataTemplate.ItemsSource);
-            // the style needs to be applied after DataContext is set, otherwise it won't bind
-            treeViewItem.Style = ItemContainerStyle;
-            return treeViewItem;
-        }
+        private ItemsControlItemPropertyReader<bool> _isExpandedPropertyReader;
 
         internal bool IsExpanded(object item)
         {
-            return GetGeneratedContainer(item)?.IsExpanded ?? GetTrivialIsExpanded(item) ?? GetNonTrivialIsExpanded(item);
+            if (_isExpandedPropertyReader == null)
+                _isExpandedPropertyReader = new ItemsControlItemPropertyReader<bool>(this, VirtualTreeViewItem.IsExpandedProperty, allowSourceProperties: OptimizeItemBindings);
+            return _isExpandedPropertyReader.Get(item);
         }
 
-        private string _isExpandedSourceProperty;
 
-        private bool? GetTrivialIsExpanded(object item)
-        {
-            if (!OptimizeItemBindings || _isExpandedSourceProperty == null)
-                return null;
-
-            var isExpandedProperty = item.GetType().GetProperty(_isExpandedSourceProperty);
-            if (isExpandedProperty == null)
-                return null;
-
-            return (bool)isExpandedProperty.GetValue(item);
-        }
-
-        private bool GetNonTrivialIsExpanded(object item)
-        {
-            var container = CreateContainer(item);
-            if (OptimizeItemBindings)
-            {
-                var isExpandedBinding = BindingOperations.GetBinding(container, VirtualTreeViewItem.IsExpandedProperty);
-                if (isExpandedBinding != null && isExpandedBinding.Source == null && isExpandedBinding.RelativeSource == null && isExpandedBinding.ElementName == null
-                    && isExpandedBinding.Path.Path.All(IsNotSpecial))
-                {
-                    _isExpandedSourceProperty = isExpandedBinding.Path.Path;
-                }
-            }
-            return container.IsExpanded;
-        }
+        private ItemsControlItemPropertyReader<IEnumerable> _childrenPropertyReader;
 
         internal IEnumerable GetChildren(object item)
         {
-            return GetGeneratedContainer(item)?.ItemsSource ?? GetTrivialChildren(item) ?? GetNonTrivialChildren(item);
-        }
-
-        private string _childrenSourceProperty;
-
-        private IEnumerable GetTrivialChildren(object item)
-        {
-            if (!OptimizeItemBindings || _childrenSourceProperty == null)
-                return null;
-
-            var childrenSourceProperty = item.GetType().GetProperty(_childrenSourceProperty);
-            if (childrenSourceProperty == null)
-                return null;
-
-            return (IEnumerable) childrenSourceProperty.GetValue(item);
-        }
-
-        private IEnumerable GetNonTrivialChildren(object item)
-        {
-            var container = CreateContainer(item);
-            if (OptimizeItemBindings)
-            {
-                var childrenBinding = BindingOperations.GetBinding(container, ItemsSourceProperty);
-                if (childrenBinding != null && childrenBinding.Source == null && childrenBinding.RelativeSource == null && childrenBinding.ElementName == null
-                    && childrenBinding.Path.Path.All(IsNotSpecial))
-                {
-                    _childrenSourceProperty = childrenBinding.Path.Path;
-                }
-            }
-            return container.ItemsSource;
-        }
-
-        private static bool IsNotSpecial(char c)
-        {
-            return c != '.' && c != '[';
+            if (_childrenPropertyReader == null)
+                _childrenPropertyReader = new ItemsControlItemPropertyReader<IEnumerable>(this, VirtualTreeViewItem.ItemsSourceProperty, allowSourceProperties: OptimizeItemBindings);
+            return _childrenPropertyReader.Get(item);
         }
     }
 }

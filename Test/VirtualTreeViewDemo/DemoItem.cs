@@ -10,14 +10,14 @@ namespace VirtualTreeViewDemo
     [DebuggerDisplay("{Label}")]
     public class DemoItem
     {
-        public ObservableCollection<DemoItem> Children { get; } = new ObservableCollection<DemoItem>();
+        public ObservableCollection<object> Children { get; } = new ObservableCollection<object>();
 
         public bool IsExpanded { get; set; }
 
         public string Label { get; set; }
 
-        private static DemoItem[] _root;
-        public static DemoItem[] Root
+        private static object[] _root;
+        public static object[] Root
         {
             get
             {
@@ -27,8 +27,8 @@ namespace VirtualTreeViewDemo
             }
         }
 
-        private static DemoItem[] _root2;
-        public static DemoItem[] Root2
+        private static object[] _root2;
+        public static object[] Root2
         {
             get
             {
@@ -38,22 +38,30 @@ namespace VirtualTreeViewDemo
             }
         }
 
-        private static DemoItem[] CreateItems(int depth, DemoItem parent, int seed = 0) => CreateItems(new Random(seed), parent, 0, depth);
+        private static object[] CreateItems(int depth, DemoItem parent, int seed = 0) => CreateItems(new Random(seed), parent, 0, depth);
 
-        private static DemoItem[] CreateItems(Random random, DemoItem parent, int depth, int maxDepth)
+        private static object[] CreateItems(Random random, DemoItem parent, int depth, int maxDepth)
         {
             int itemsCount = random.Next((int)Math.Pow(10, depth + 1));
-            var items = new DemoItem[itemsCount];
+            var items = new object[itemsCount];
             for (int itemIndex = 0; itemIndex < itemsCount; itemIndex++)
             {
-                var item = new DemoItem();
-                item.Label = (parent != null ? parent.Label + "." : "") + (itemIndex + 1);
-                item.IsExpanded = random.Next(5) == 0;
-                items[itemIndex] = item;
-                if (depth < maxDepth)
+                if (random.Next(11) == 0)
                 {
-                    foreach (var childItem in CreateItems(random, item, depth + 1, maxDepth))
-                        item.Children.Add(childItem);
+                    var errorItem = new ErrorItem();
+                    items[itemIndex] = errorItem;
+                }
+                else
+                {
+                    var item = new DemoItem();
+                    item.Label = (parent != null ? parent.Label + "." : "") + (itemIndex + 1);
+                    item.IsExpanded = random.Next(5) == 0;
+                    items[itemIndex] = item;
+                    if (depth < maxDepth)
+                    {
+                        foreach (var childItem in CreateItems(random, item, depth + 1, maxDepth))
+                            item.Children.Add(childItem);
+                    }
                 }
             }
             return items;

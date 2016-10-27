@@ -107,6 +107,16 @@
         <TreeView Grid.Column="1" Grid.Row="2" ItemsSource="{x:Static local:DemoItem.Root}"
               VirtualizingPanel.IsContainerVirtualizable="true" VirtualizingPanel.IsVirtualizing="false" VirtualizingPanel.IsVirtualizingWhenGrouping="true"
                   >
+            <TreeView.Resources>
+                <DataTemplate DataType="{x:Type local:ErrorItem}">
+                    <TextBlock Text="Pwah" Foreground="Violet"/>
+                </DataTemplate>
+                <HierarchicalDataTemplate ItemsSource="{Binding Children}" DataType="{x:Type local:DemoItem}">
+                    <Grid>
+                        <TextBlock Text="{Binding Label}"/>
+                    </Grid>
+                </HierarchicalDataTemplate>
+            </TreeView.Resources>
             <TreeView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <VirtualizingStackPanel />
@@ -117,13 +127,6 @@
                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
                 </Style>
             </TreeView.ItemContainerStyle>
-            <TreeView.ItemTemplate>
-                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                    <Grid>
-                        <TextBlock Text="{Binding Label}"/>
-                    </Grid>
-                </HierarchicalDataTemplate>
-            </TreeView.ItemTemplate>
         </TreeView>
         <TextBlock Grid.Column="1" Grid.Row="2" Style="{StaticResource Comment}">
             Admire slowness of original TreeView<LineBreak/>
@@ -132,18 +135,28 @@
 
         <TextBlock Grid.Column="2" Grid.Row="2" Style="{StaticResource Comment}" Text="Full speed here, thanks VirtualTreeView!"/>
         <vtv:VirtualTreeView Grid.Column="2" Grid.Row="2" ItemsSource="{x:Static local:DemoItem.Root2}">
+            <vtv:VirtualTreeView.Resources>
+                <DataTemplate DataType="{x:Type local:ErrorItem}">
+                    <TextBlock Text="Pwah" Foreground="Violet"/>
+                </DataTemplate>
+                <HierarchicalDataTemplate ItemsSource="{Binding Children}" DataType="{x:Type local:DemoItem}">
+                    <Grid>
+                        <TextBlock Text="{Binding Label}"/>
+                    </Grid>
+                </HierarchicalDataTemplate>
+            </vtv:VirtualTreeView.Resources>
             <vtv:VirtualTreeView.ItemContainerStyle>
                 <Style TargetType="{x:Type vtv:VirtualTreeViewItem}">
                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
                 </Style>
             </vtv:VirtualTreeView.ItemContainerStyle>
-            <vtv:VirtualTreeView.ItemTemplate>
+            <!--<vtv:VirtualTreeView.ItemTemplate>
                 <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                     <Grid d:DataContext="{d:DesignInstance Type=local:DemoItem, IsDesignTimeCreatable=true}">
                         <TextBlock Text="{Binding Label}"/>
                     </Grid>
                 </HierarchicalDataTemplate>
-            </vtv:VirtualTreeView.ItemTemplate>
+            </vtv:VirtualTreeView.ItemTemplate>-->
         </vtv:VirtualTreeView>
 
         <!-- must be here, otherwise they don't work (WTF?) -->

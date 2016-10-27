@@ -63,6 +63,7 @@
     <Compile Include="Collection\NotifyCollectionChangedExtensions.cs" />
     <Compile Include="Collection\FlatCollection.cs" />
     <Compile Include="Collection\Reader\NullCollectionReader.cs" />
+    <Compile Include="ItemsControlItemPropertyReader.cs" />
     <Compile Include="MarginConverter.cs" />
     <Compile Include="Reflection\ObjectExtensions.cs" />
     <Compile Include="VirtualTreeViewItemFlatCollection.cs" />
