@@ -36,8 +36,8 @@ namespace VirtualTreeViewDemo
 
             var treeViewCount = GetDescendants(TreeView).OfType<TreeViewItem>().Count();
             TreeViewCount.Text = $"{treeViewCount} items";
-            //var virtualTreeViewCount = GetDescendants(VirtualTreeView).OfType<VirtualTreeViewItem>().Count();
-            //VirtualTreeViewCount.Text = $"{virtualTreeViewCount} items";
+            var virtualTreeViewCount = GetDescendants(VirtualTreeView).OfType<VirtualTreeViewItem>().Count();
+            VirtualTreeViewCount.Text = $"{virtualTreeViewCount} items";
         }
 
         private IEnumerable<DependencyObject> GetChildren(DependencyObject d)
