@@ -38,6 +38,31 @@ namespace VirtualTreeView.Collection
             public IEnumerable ChildrenSource;
             public bool IsExpanded;
             public int Size => VisualChildren != null ? VisualChildren.Sum(c => c.Size) + 1 : 1; // +1 because size includes self
+
+            /// <summary>
+            /// Gets the child offset, related to parent.
+            /// </summary>
+            /// <param name="childIndex">Index of the child.</param>
+            /// <returns></returns>
+            public int GetChildOffset(int childIndex)
+            {
+                return VisualChildren.Take(childIndex).Sum(c => c.Size);
+            }
+
+            /// <summary>
+            /// Gets the flat index of the given node.
+            /// </summary>
+            /// <returns></returns>
+            public int GetIndex()
+            {
+                var parent = Parent;
+                if (parent == null) // this is the root node
+                    return -1; // which does not exist
+                var childIndex = parent.VisualChildren.IndexOf(this);
+                var childOffset = parent.GetChildOffset(childIndex);
+                // parent to child + parent + parent index
+                return childOffset + 1 + parent.GetIndex();
+            }
         }
 
         /// <summary>
@@ -173,39 +198,13 @@ namespace VirtualTreeView.Collection
             itemNode.IsExpanded = false;
         }
 
-        /// <summary>
-        /// Gets the child offset, related to parent.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <param name="childIndex">Index of the child.</param>
-        /// <returns></returns>
-        private static int GetChildOffset(Node parent, int childIndex)
-        {
-            return parent.VisualChildren.Take(childIndex).Sum(c => c.Size);
-        }
-
-        /// <summary>
-        /// Gets the flat index of the given node.
-        /// </summary>
-        /// <param name="node">The node.</param>
-        /// <returns></returns>
-        private static int GetIndex(Node node)
-        {
-            var parent = node.Parent;
-            if (parent == null) // this is the root node
-                return -1; // which does not exist
-            var childIndex = parent.VisualChildren.IndexOf(node);
-            var childOffset = GetChildOffset(parent, childIndex);
-            // parent to child + parent + parent index
-            return childOffset + 1 + GetIndex(parent);
-        }
 
         private void Delete(IList<Node> nodes)
         {
             if (nodes.Count == 0)
                 return;
 
-            var index = GetIndex(nodes[0]);
+            var index = nodes[0].GetIndex();
             var count = nodes.Sum(n => n.Size);
             RemoveRange(index, count);
             foreach (var node in nodes.ToArray())
@@ -263,7 +262,7 @@ namespace VirtualTreeView.Collection
         private void Insert(Node parentNode, object item, int itemIndex)
         {
             // insert index is parent node + 1 (parent node itself) + previous siblings size
-            var insertIndex = GetIndex(parentNode) + 1 + GetChildOffset(parentNode, itemIndex);
+            var insertIndex = parentNode.GetIndex() + 1 + parentNode.GetChildOffset(itemIndex);
             _target.Insert(insertIndex, GetContainerForItem(item));
 
             var itemNode = new Node { Item = item, Parent = parentNode, IsExpanded = GetIsExpanded(item) };
