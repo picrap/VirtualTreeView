@@ -59,6 +59,6 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="container">The container.</param>
         /// <returns></returns>
-        protected override object GetItemFromContainer(object container) => container;
+        protected virtual object GetItemFromContainer(object container) => container;
     }
 }

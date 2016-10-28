@@ -7,7 +7,7 @@ namespace VirtualTreeView.Collection
     using System.Collections;
     using System.Collections.Generic;
     using System.Collections.Specialized;
-    using Reader;
+    using System.Linq;
     using Reflection;
 
     /// <summary>
@@ -17,8 +17,28 @@ namespace VirtualTreeView.Collection
     /// </summary>
     public abstract class FlatCollection
     {
-        private IEnumerable _source;
         private readonly IList _target;
+        private readonly IDictionary<object, Node> _nodes = new Dictionary<object, Node>();
+        private readonly Node _rootNode;
+        private readonly IDictionary<IEnumerable, Node> _nodesByChildren = new Dictionary<IEnumerable, Node>();
+
+        /// <summary>
+        /// This is a visual node
+        /// </summary>
+        private class Node
+        {
+            public object Item;
+            public Node Parent;
+
+            /// <summary>
+            /// The visual children
+            /// </summary>
+            public IList<Node> VisualChildren { get; } = new List<Node>();
+
+            public IEnumerable ChildrenSource;
+            public bool IsExpanded;
+            public int Size => VisualChildren != null ? VisualChildren.Sum(c => c.Size) + 1 : 1; // +1 because size includes self
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FlatCollection"/> class.
@@ -40,9 +60,9 @@ namespace VirtualTreeView.Collection
             if (target.Count > 0)
                 throw new ArgumentException(@"Must be empty", nameof(target));
             _target = target;
-            _ownersByCollections[source] = null;
-            _source = source;
-            source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnSourceCollectionChanged);
+            _rootNode = new Node { IsExpanded = true };
+            _nodesByChildren[source] = _rootNode;
+            SetChildrenSource(_rootNode, source);
             LoadInitialValuesFromConstructor();
         }
 
@@ -59,7 +79,7 @@ namespace VirtualTreeView.Collection
         /// </summary>
         protected void LoadInitialValues()
         {
-            InsertItems(0, CollectionReader.Create(_source), null);
+            InsertRange(_rootNode, _rootNode.ChildrenSource, 0);
         }
 
         /// <summary>
@@ -68,7 +88,9 @@ namespace VirtualTreeView.Collection
         private void Clear()
         {
             _target.Clear();
-            _parentsByItems.Clear();
+            _nodesByChildren.Clear();
+            _nodes.Clear();
+            _rootNode.VisualChildren.Clear();
         }
 
         /// <summary>
@@ -91,12 +113,6 @@ namespace VirtualTreeView.Collection
         /// <param name="item">The item.</param>
         /// <returns></returns>
         protected abstract object GetContainerForItem(object item);
-        /// <summary>
-        /// Gets the item from container.
-        /// </summary>
-        /// <param name="container">The container.</param>
-        /// <returns></returns>
-        protected abstract object GetItemFromContainer(object container);
 
         /// <summary>
         /// Expands the specified item in the target list.
@@ -107,14 +123,21 @@ namespace VirtualTreeView.Collection
         /// <param name="item">The item.</param>
         public void Expand(object item)
         {
-            var itemChildren = CollectionReader.Create(GetChildren(item));
-            if (IsExpanded(itemChildren))
+            var itemNode = _nodes[item];
+            ExpandNode(itemNode);
+        }
+
+        private void ExpandNode(Node itemNode)
+        {
+            if (itemNode.IsExpanded)
                 return;
-            if (itemChildren.Any)
-            {
-                var itemIndex = GetItemIndex(item);
-                InsertItems(itemIndex + 1, itemChildren, item);
-            }
+
+            itemNode.IsExpanded = true;
+
+            var itemChildren = GetChildren(itemNode.Item);
+            SetChildrenSource(itemNode, itemChildren);
+            if (itemChildren != null)
+                InsertRange(itemNode, itemChildren, 0);
         }
 
         /// <summary>
@@ -126,15 +149,8 @@ namespace VirtualTreeView.Collection
         /// </returns>
         public bool IsExpanded(object item)
         {
-            return IsExpanded(CollectionReader.Create(GetChildren(item)));
-        }
-
-        private bool IsExpanded(CollectionReader itemChildren)
-        {
-            if (!itemChildren.Any)
-                return false;
-
-            return GetItemIndex(itemChildren.First) >= 0;
+            var itemNode = _nodes[item];
+            return itemNode.IsExpanded;
         }
 
         /// <summary>
@@ -144,15 +160,86 @@ namespace VirtualTreeView.Collection
         /// <param name="item">The item.</param>
         public void Collapse(object item)
         {
-            if (!IsExpanded(item))
-                return;
-            var itemIndex = GetItemIndex(item);
-            var lastChildIndex = GetLastChildIndex(item);
-            DeleteItems(itemIndex + 1, lastChildIndex - itemIndex);
+            var itemNode = _nodes[item];
+            CollapseNode(itemNode);
         }
 
-        private readonly IDictionary<object, object> _parentsByItems = new Dictionary<object, object>();
-        private readonly IDictionary<object, object> _ownersByCollections = new Dictionary<object, object>();
+        private void CollapseNode(Node itemNode)
+        {
+            if (!itemNode.IsExpanded)
+                return;
+
+            Delete(itemNode.VisualChildren);
+            itemNode.IsExpanded = false;
+        }
+
+        /// <summary>
+        /// Gets the child offset, related to parent.
+        /// </summary>
+        /// <param name="parent">The parent.</param>
+        /// <param name="childIndex">Index of the child.</param>
+        /// <returns></returns>
+        private static int GetChildOffset(Node parent, int childIndex)
+        {
+            return parent.VisualChildren.Take(childIndex).Sum(c => c.Size);
+        }
+
+        /// <summary>
+        /// Gets the flat index of the given node.
+        /// </summary>
+        /// <param name="node">The node.</param>
+        /// <returns></returns>
+        private static int GetIndex(Node node)
+        {
+            var parent = node.Parent;
+            if (parent == null) // this is the root node
+                return -1; // which does not exist
+            var childIndex = parent.VisualChildren.IndexOf(node);
+            var childOffset = GetChildOffset(parent, childIndex);
+            // parent to child + parent + parent index
+            return childOffset + 1 + GetIndex(parent);
+        }
+
+        private void Delete(IList<Node> nodes)
+        {
+            if (nodes.Count == 0)
+                return;
+
+            var index = GetIndex(nodes[0]);
+            var count = nodes.Sum(n => n.Size);
+            RemoveRange(index, count);
+            foreach (var node in nodes.ToArray())
+            {
+                node.Parent.VisualChildren.Remove(node);
+                Unlink(node);
+            }
+        }
+
+        private void DeleteRange(IEnumerable items)
+        {
+            var itemsNodes = items.Cast<object>().Select(i => _nodes[i]).ToArray();
+            Delete(itemsNodes);
+        }
+
+        private void RemoveRange(int index, int count)
+        {
+            while (count-- > 0)
+                _target.RemoveAt(index);
+        }
+
+        private void Unlink(Node node)
+        {
+            if (node.VisualChildren != null)
+                foreach (var child in node.VisualChildren)
+                    Unlink(child);
+
+            if (node.ChildrenSource != null)
+            {
+                _nodesByChildren.Remove(node.ChildrenSource);
+                node.ChildrenSource.IfType<INotifyCollectionChanged>(c => c.CollectionChanged -= OnSourceCollectionChanged);
+            }
+            _nodes.Remove(node.Item);
+        }
 
         /// <summary>
         /// Gets the parent item from given item or null for topmost items
@@ -161,159 +248,86 @@ namespace VirtualTreeView.Collection
         /// <returns>The parent or null for topmost items</returns>
         public object GetParent(object item)
         {
-            object parent;
-            _parentsByItems.TryGetValue(item, out parent);
-            return parent;
+            Node node;
+            if (!_nodes.TryGetValue(item, out node))
+                return null;
+            return node.Parent?.Item;
         }
 
-        /// <summary>
-        /// Inserts the item.
-        /// </summary>
-        /// <param name="index">The index.</param>
-        /// <param name="item">The item.</param>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The number of elements added to target collection</returns>
-        private int InsertItem(int index, object item, object parent)
+        private void InsertRange(Node parentNode, IEnumerable items, int itemIndex)
         {
-            var count = 1;
-            var containerForItem = GetContainerForItem(item);
+            foreach (var item in items)
+                Insert(parentNode, item, itemIndex++);
+        }
 
-            _target.Insert(index, containerForItem);
-            _parentsByItems[item] = parent;
-            var itemChildren = GetChildren(item);
-            if (itemChildren != null)
+        private void Insert(Node parentNode, object item, int itemIndex)
+        {
+            // insert index is parent node + 1 (parent node itself) + previous siblings size
+            var insertIndex = GetIndex(parentNode) + 1 + GetChildOffset(parentNode, itemIndex);
+            _target.Insert(insertIndex, GetContainerForItem(item));
+
+            var itemNode = new Node { Item = item, Parent = parentNode, IsExpanded = GetIsExpanded(item) };
+            parentNode.VisualChildren.Insert(itemIndex, itemNode);
+            _nodes[item] = itemNode;
+
+            if (itemNode.IsExpanded)
             {
-                var itemChildrenReader = CollectionReader.Create(itemChildren);
-                if (GetIsExpanded(item))
-                    count += InsertItems(index + 1, itemChildrenReader, item);
-                _ownersByCollections[itemChildren] = item;
-                itemChildren.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += OnSourceCollectionChanged);
+                var itemChildren = GetChildren(item);
+                if (itemChildren != null)
+                {
+                    SetChildrenSource(itemNode, itemChildren);
+                    _nodesByChildren[itemChildren] = itemNode;
+                    InsertRange(itemNode, itemChildren, 0);
+                }
             }
-            return count;
+        }
+
+        private void SetChildrenSource(Node itemNode, IEnumerable itemChildren)
+        {
+            if (ReferenceEquals(itemNode.ChildrenSource, itemChildren))
+                return;
+            if (itemNode.ChildrenSource != null)
+                _nodesByChildren.Remove(itemNode.ChildrenSource);
+            itemNode.ChildrenSource.IfType<INotifyCollectionChanged>(c => c.CollectionChanged -= OnSourceCollectionChanged);
+            itemNode.ChildrenSource = itemChildren;
+            itemNode.ChildrenSource.IfType<INotifyCollectionChanged>(c => c.CollectionChanged += OnSourceCollectionChanged);
+            if (itemNode.ChildrenSource != null)
+                _nodesByChildren[itemNode.ChildrenSource] = itemNode;
         }
 
         private void OnSourceCollectionChanged(object itemChildren, NotifyCollectionChangedEventArgs e)
         {
-            var item = _ownersByCollections[itemChildren];
-            OnSourceCollectionChanged(item, CollectionReader.Create((IEnumerable)itemChildren), e);
+            //var item = _ownersByCollections[(IEnumerable)itemChildren];
+            var node = _nodesByChildren[(IEnumerable)itemChildren];
+            OnSourceCollectionChanged(node, e);
         }
 
-        private void OnSourceCollectionChanged(object parent, CollectionReader collection, NotifyCollectionChangedEventArgs e)
+        private void OnSourceCollectionChanged(Node itemNode, NotifyCollectionChangedEventArgs e)
         {
-            if (parent != null && !GetIsExpanded(parent))
+            if (!itemNode.IsExpanded)
                 return;
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
-                    InsertItems(GetInsertIndex(collection, e.NewStartingIndex), CollectionReader.Create(e.NewItems), parent);
+                    InsertRange(itemNode, e.NewItems, e.NewStartingIndex);
                     break;
                 case NotifyCollectionChangedAction.Remove:
-                    DeleteItems(CollectionReader.Create(e.OldItems));
+                    DeleteRange(e.OldItems);
                     break;
                 case NotifyCollectionChangedAction.Replace:
-                    DeleteItems(CollectionReader.Create(e.OldItems));
-                    InsertItems(GetInsertIndex(collection, e.NewStartingIndex), CollectionReader.Create(e.NewItems), parent);
+                    DeleteRange(e.OldItems);
+                    InsertRange(itemNode, e.NewItems, e.NewStartingIndex);
                     break;
                 case NotifyCollectionChangedAction.Move:
                     // :confounded:
                     throw new NotImplementedException();
                 case NotifyCollectionChangedAction.Reset:
-                    if (parent == null)
-                        Clear();
-                    else
-                        Collapse(parent);
-                    var children = CollectionReader.Create(GetChildren(parent));
-                    if (children.Any)
-                        InsertItems(GetItemIndex(parent) + 1, children, parent);
+                    CollapseNode(itemNode);
+                    ExpandNode(itemNode);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-        }
-
-        /// <summary>
-        /// Deletes the items.
-        /// This assumes that items are in sorted order and consecutives
-        /// </summary>
-        /// <param name="items">The items.</param>
-        private void DeleteItems(CollectionReader items)
-        {
-            // the idea is: delete all items from first item to last item child
-            var firstIndex = GetItemIndex(items.First);
-            var lastChildIndex = GetLastChildIndex(items.Last);
-
-            DeleteItems(firstIndex, lastChildIndex - firstIndex + 1);
-        }
-
-        private int InsertItems(int index, CollectionReader items, object parent)
-        {
-            var startIndex = index;
-            foreach (var i in items.All)
-                index += InsertItem(index, i, parent);
-            return index - startIndex;
-        }
-
-        private void DeleteItems(int index, int count)
-        {
-            while (count-- > 0)
-            {
-                var container = _target[index];
-                _parentsByItems.Remove(container);
-                var item = GetItemFromContainer(container);
-                var itemChildren = GetChildren(item);
-                if (itemChildren != null)
-                {
-                    _ownersByCollections.Remove(itemChildren);
-                    itemChildren.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged -= OnSourceCollectionChanged);
-                }
-                _target.RemoveAt(index);
-            }
-        }
-
-        /// <summary>
-        /// Gets the index where an item can be insertedn given the parent and child index.
-        /// </summary>
-        /// <param name="collection">The collection.</param>
-        /// <param name="childIndex">Index of the child.</param>
-        /// <returns></returns>
-        private int GetInsertIndex(CollectionReader collection, int childIndex)
-        {
-            if (childIndex == 0)
-                return 0;
-            return GetLastChildIndex(collection.At(childIndex - 1)) + 1;
-        }
-
-        /// <summary>
-        /// Gets the last child index.
-        /// </summary>
-        /// <param name="item">The item.</param>
-        /// <returns></returns>
-        private int GetLastChildIndex(object item)
-        {
-            var itemChildren = CollectionReader.Create(GetChildren(item));
-            if (!itemChildren.Any || !IsExpanded(itemChildren))
-                return GetItemIndex(item);
-
-            return GetLastChildIndex(itemChildren.Last);
-        }
-
-        /// <summary>
-        /// Gets the index of the item.
-        /// </summary>
-        /// <param name="item">The item.</param>
-        /// <returns></returns>
-        private int GetItemIndex(object item)
-        {
-            // root collection? no index
-            if (item == null)
-                return -1;
-            for (int index = 0; index < _target.Count; index++)
-            {
-                var indexedItem = GetItemFromContainer(_target[index]);
-                if (ReferenceEquals(indexedItem, item))
-                    return index;
-            }
-            return -1;
         }
     }
 }

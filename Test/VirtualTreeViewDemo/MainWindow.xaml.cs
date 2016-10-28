@@ -5,6 +5,7 @@ namespace VirtualTreeViewDemo
 {
     using System;
     using System.Collections.Generic;
+    using System.Collections.ObjectModel;
     using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
@@ -35,8 +36,8 @@ namespace VirtualTreeViewDemo
 
             var treeViewCount = GetDescendants(TreeView).OfType<TreeViewItem>().Count();
             TreeViewCount.Text = $"{treeViewCount} items";
-            var virtualTreeViewCount = GetDescendants(VirtualTreeView).OfType<VirtualTreeViewItem>().Count();
-            VirtualTreeViewCount.Text = $"{virtualTreeViewCount} items";
+            //var virtualTreeViewCount = GetDescendants(VirtualTreeView).OfType<VirtualTreeViewItem>().Count();
+            //VirtualTreeViewCount.Text = $"{virtualTreeViewCount} items";
         }
 
         private IEnumerable<DependencyObject> GetChildren(DependencyObject d)
@@ -53,10 +54,45 @@ namespace VirtualTreeViewDemo
 
         private void AppendDemoItems(object sender, RoutedEventArgs e)
         {
-            foreach (var i in DemoItem.CreateItems(2, null, DemoItem.Root.Count))
-                DemoItem.Root.Add(i);
-            foreach (var i in DemoItem.CreateItems(2, null, DemoItem.Root2.Count))
-                DemoItem.Root2.Add(i);
+            AppendDemoItems(DemoItem.Root);
+            AppendDemoItems(DemoItem.Root2);
+        }
+
+        private static void AppendDemoItems(ObservableCollection<object> root)
+        {
+            foreach (var i in DemoItem.CreateItems(2, null, root.Count))
+                root.Add(i);
+        }
+
+        private void ReplaceFirstContent(object sender, RoutedEventArgs e)
+        {
+            ReplaceFirstContent(DemoItem.Root);
+            ReplaceFirstContent(DemoItem.Root2);
+        }
+
+        private static void ReplaceFirstContent(ObservableCollection<object> root)
+        {
+            var firstItem = root[0] as DemoItem;
+            if (firstItem == null)
+                root[0] = firstItem = new DemoItem { Label = "1" };
+            firstItem.Children.Clear();
+            foreach (var childItem in DemoItem.CreateItems(1, firstItem, seed: 3))
+                firstItem.Children.Add(childItem);
+        }
+
+        private void AppendFirstContent(object sender, RoutedEventArgs e)
+        {
+            AppendFirstContent(DemoItem.Root);
+            AppendFirstContent(DemoItem.Root2);
+        }
+
+        private static void AppendFirstContent(ObservableCollection<object> root)
+        {
+            var firstItem = root[0] as DemoItem;
+            if (firstItem == null)
+                root[0] = firstItem = new DemoItem { Label = "1" };
+            foreach (var childItem in DemoItem.CreateItems(1, firstItem, seed: 3, labelIndex: firstItem.Children.Count))
+                firstItem.Children.Add(childItem);
         }
     }
 }

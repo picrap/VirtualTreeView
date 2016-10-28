@@ -61,7 +61,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="container">The container.</param>
         /// <returns></returns>
-        protected override object GetItemFromContainer(object container)
+        protected virtual object GetItemFromContainer(object container)
         {
             return ((VirtualTreeViewItemHolder)container).Content;
         }

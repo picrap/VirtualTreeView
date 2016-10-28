@@ -38,9 +38,9 @@ namespace VirtualTreeViewDemo
             }
         }
 
-        public static ObservableCollection<object> CreateItems(int depth, DemoItem parent, int seed = 0) => CreateItems(new Random(seed), parent, 0, depth);
+        public static ObservableCollection<object> CreateItems(int depth, DemoItem parent, int seed = 0, int labelIndex = 0) => CreateItems(new Random(seed), parent, 0, depth, labelIndex);
 
-        private static ObservableCollection<object> CreateItems(Random random, DemoItem parent, int depth, int maxDepth)
+        private static ObservableCollection<object> CreateItems(Random random, DemoItem parent, int depth, int maxDepth, int labelIndex = 0)
         {
             int itemsCount = random.Next((int)Math.Pow(10, depth + 1));
             var items = new ObservableCollection<object>();
@@ -54,7 +54,7 @@ namespace VirtualTreeViewDemo
                 else
                 {
                     var item = new DemoItem();
-                    item.Label = (parent != null ? parent.Label + "." : "") + (itemIndex + 1);
+                    item.Label = (parent != null ? parent.Label + "." : "") + ++labelIndex;
                     item.IsExpanded = random.Next(5) == 0;
                     items.Add(item);
                     if (depth < maxDepth)
