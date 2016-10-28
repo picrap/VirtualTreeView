@@ -17,6 +17,7 @@ namespace VirtualTreeView.Collection
     /// </summary>
     public abstract class FlatCollection
     {
+        private IEnumerable _source;
         private readonly IList _target;
 
         /// <summary>
@@ -39,10 +40,26 @@ namespace VirtualTreeView.Collection
             if (target.Count > 0)
                 throw new ArgumentException(@"Must be empty", nameof(target));
             _target = target;
-            var sourceReader = CollectionReader.Create(source);
             _ownersByCollections[source] = null;
+            _source = source;
             source.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnSourceCollectionChanged);
-            InsertItems(0, sourceReader, null);
+            LoadInitialValuesFromConstructor();
+        }
+
+        /// <summary>
+        /// Loads the initial values from constructor.
+        /// </summary>
+        protected virtual void LoadInitialValuesFromConstructor()
+        {
+            LoadInitialValues();
+        }
+
+        /// <summary>
+        /// Loads the initial values.
+        /// </summary>
+        protected void LoadInitialValues()
+        {
+            InsertItems(0, CollectionReader.Create(_source), null);
         }
 
         /// <summary>

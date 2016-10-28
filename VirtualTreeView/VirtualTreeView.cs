@@ -11,11 +11,8 @@ namespace VirtualTreeView
     using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
-    using System.Windows.Controls.Primitives;
-    using System.Windows.Input;
     using System.Windows.Markup;
     using Collection;
-    using MS.Internal.KnownBoxes;
     using Reflection;
 
     /// <summary>
@@ -27,8 +24,6 @@ namespace VirtualTreeView
     [ContentProperty(nameof(HierarchicalItems))]
     public class VirtualTreeView : ItemsControl
     {
-        private readonly ObservableCollection<object> _hierarchicalItemsSource = new ObservableCollection<object>();
-
         private bool _hierarchicalItemsSourceBound;
 
         /// <summary>
@@ -108,7 +103,6 @@ namespace VirtualTreeView
         public VirtualTreeView()
         {
             FlatItems = new VirtualTreeViewItemFlatCollection(HierarchicalItems, Items);
-            //HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.OnAddRemove(o => o.IfType<VirtualTreeViewItem>(i => i.ParentTreeView = this)));
             HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsCollectionChanged);
         }
 
@@ -117,7 +111,7 @@ namespace VirtualTreeView
             foreach (var item in e.GetAddedItems(sender).OfType<VirtualTreeViewItem>())
                 item.ParentTreeView = this;
         }
-        
+
         private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var value = (IEnumerable)e.NewValue;
@@ -136,32 +130,32 @@ namespace VirtualTreeView
             if (_settingSource)
                 return;
 
-            _hierarchicalItemsSource.Clear();
             _hierarchicalItemsSourceBound = value != null;
             if (_hierarchicalItemsSourceBound)
             {
-                // on first binding, create the collection
-                if (FlatItemsSource == null)
-                {
-                    var itemsSource = new ObservableCollection<object>();
-                    FlatItemsSource = new VirtualTreeViewItemsSourceFlatCollection(_hierarchicalItemsSource, itemsSource, this);
-                    _settingSource = true;
-                    // now setting the flat source that the ItemsControl will use
-                    ItemsSource = itemsSource;
-                    _settingSource = false;
-                }
                 if (IsLoaded)
-                {
-                    foreach (var newItem in value)
-                        _hierarchicalItemsSource.Add(newItem);
-                }
+                    SetItemsSource(value);
                 else
-                    Loaded += delegate
-                    {
-                        foreach (var newItem in value)
-                            _hierarchicalItemsSource.Add(newItem);
-                    };
+                {
+                    SetItemsSource(null); // no dot bind to this right now!
+                    Loaded += delegate { SetItemsSource(value); };
+                }
             }
+        }
+
+        private void SetItemsSource(IEnumerable value)
+        {
+            var itemsSource = new ObservableCollection<object>();
+            FlatItemsSource = new VirtualTreeViewItemsSourceFlatCollection(value, itemsSource, this);
+            // now setting the flat source that the ItemsControl will use
+            SetItemsSource(itemsSource);
+        }
+
+        private void SetItemsSource(ObservableCollection<object> itemsSource)
+        {
+            _settingSource = true;
+            ItemsSource = itemsSource;
+            _settingSource = false;
         }
 
         internal void OnExpanded(ItemsControl item)
@@ -219,7 +213,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="treeViewItem">The tree view item.</param>
         /// <returns></returns>
-        internal int GetDepth(VirtualTreeViewItem treeViewItem)
+        private int GetDepth(VirtualTreeViewItem treeViewItem)
         {
             int depth = -1; // starting from -1 here, cause the dataContext below will be non-null at least once
             for (var dataContext = treeViewItem.DataContext; dataContext != null; dataContext = FlatItemsSource.GetParent(dataContext))

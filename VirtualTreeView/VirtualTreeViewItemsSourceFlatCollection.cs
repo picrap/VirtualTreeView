@@ -24,7 +24,14 @@ namespace VirtualTreeView
             : base(source, target)
         {
             _treeView = treeView;
+            LoadInitialValues();
         }
+
+        /// <summary>
+        /// Loads the initial values from constructor.
+        /// Does nothing here, since the <see cref="_treeView"/> has to be initialized
+        /// </summary>
+        protected override void LoadInitialValuesFromConstructor() { }
 
         /// <summary>
         /// Gets a value indicating whether the item is expanded.

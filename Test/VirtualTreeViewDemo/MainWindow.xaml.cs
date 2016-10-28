@@ -4,7 +4,6 @@
 namespace VirtualTreeViewDemo
 {
     using System;
-    using System.Collections;
     using System.Collections.Generic;
     using System.Linq;
     using System.Windows;
@@ -50,6 +49,14 @@ namespace VirtualTreeViewDemo
         private IEnumerable<DependencyObject> GetDescendants(DependencyObject d)
         {
             return GetChildren(d).SelectMany(c => new[] { c }.Concat(GetDescendants(c)));
+        }
+
+        private void AppendDemoItems(object sender, RoutedEventArgs e)
+        {
+            foreach (var i in DemoItem.CreateItems(2, null, DemoItem.Root.Count))
+                DemoItem.Root.Add(i);
+            foreach (var i in DemoItem.CreateItems(2, null, DemoItem.Root2.Count))
+                DemoItem.Root2.Add(i);
         }
     }
 }

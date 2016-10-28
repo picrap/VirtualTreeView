@@ -120,7 +120,8 @@ namespace VirtualTreeView
                 {
                     // when the binding is missing or complex, use from source
                     var useDependencyProperty = binding.Source != null || binding.RelativeSource != null || binding.ElementName != null || binding.Path.Path.Any(IsSpecial);
-                    _sourceProperties[itemType] = new SourceProperty { MustUseDependencyProperty = useDependencyProperty, Property = itemType.GetProperty(binding.Path.Path) };
+                    var propertyInfo = itemType.GetProperty(binding.Path.Path);
+                    _sourceProperties[itemType] = new SourceProperty { MustUseDependencyProperty = useDependencyProperty, Property = propertyInfo };
                 }
             }
 
@@ -140,6 +141,7 @@ namespace VirtualTreeView
         // Any help for something clean here (or in place of) is welcome
         private FrameworkElement CreateContainer(object item)
         {
+            _itemsControl.ApplyTemplate();
             var hierarchicalDataTemplate = GetHirarchicalItemTemplate(item);
             var elementType = _dependencyProperty.OwnerType;
             if (_itemsControl.ItemContainerStyle?.TargetType != null && _itemsControl.ItemContainerStyle.TargetType.IsSubclassOf(elementType))
