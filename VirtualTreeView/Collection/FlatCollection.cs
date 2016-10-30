@@ -376,7 +376,6 @@ namespace VirtualTreeView.Collection
 
         private void OnSourceCollectionChanged(object itemChildren, NotifyCollectionChangedEventArgs e)
         {
-            //var item = _ownersByCollections[(IEnumerable)itemChildren];
             var node = _nodesByChildren[(IEnumerable)itemChildren];
             OnSourceCollectionChanged(node, e);
         }
