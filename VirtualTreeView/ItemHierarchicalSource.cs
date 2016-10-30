@@ -10,16 +10,23 @@ namespace VirtualTreeView
     /// <summary>
     /// Specialized <see cref="FlatCollection"/> for <see cref="ItemsControl.Items"/>
     /// </summary>
-    public class VirtualTreeViewItemFlatCollection : FlatCollection
+    public class ItemHierarchicalSource : IHierarchicalSource
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="VirtualTreeViewItemFlatCollection"/> class.
+        /// Gets the source.
+        /// </summary>
+        /// <value>
+        /// The source.
+        /// </value>
+        public IEnumerable Source { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ItemHierarchicalSource"/> class.
         /// </summary>
         /// <param name="source">The source.</param>
-        /// <param name="target">The target.</param>
-        public VirtualTreeViewItemFlatCollection(IEnumerable source, IList target)
-            : base(source, target)
+        public ItemHierarchicalSource(IEnumerable source)
         {
+            Source = source;
         }
 
         /// <summary>
@@ -27,7 +34,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="item">The item.</param>
         /// <returns></returns>
-        protected override bool GetIsExpanded(object item)
+        public bool GetIsExpanded(object item)
         {
             var virtualTreeViewItem = item as VirtualTreeViewItem;
             if (virtualTreeViewItem != null)
@@ -40,7 +47,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="item">The item.</param>
         /// <returns></returns>
-        protected override IEnumerable GetChildren(object item)
+        public IEnumerable GetChildren(object item)
         {
             var itemsControl = item as ItemsControl;
             return itemsControl?.Items;
@@ -51,19 +58,9 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="item">The item.</param>
         /// <returns></returns>
-        protected override object GetContainerForItem(object item)
+        public object GetContainerForItem(object item)
         {
             return new VirtualTreeViewItemHolder(item);
-        }
-
-        /// <summary>
-        /// Gets the item from container.
-        /// </summary>
-        /// <param name="container">The container.</param>
-        /// <returns></returns>
-        protected virtual object GetItemFromContainer(object container)
-        {
-            return ((VirtualTreeViewItemHolder)container).Content;
         }
     }
 }

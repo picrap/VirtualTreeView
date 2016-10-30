@@ -15,8 +15,9 @@ namespace VirtualTreeView.Collection
     /// This is used by the <see cref="VirtualTreeView"/> to flatten direct or bound items
     /// The source list element are hereafter named "items", and the target list elements are "containers".
     /// </summary>
-    public abstract class FlatCollection
+    public class FlatCollection
     {
+        private readonly IHierarchicalSource _hierarchicalSource;
         private readonly IList _target;
         private readonly IDictionary<object, Node> _nodes = new Dictionary<object, Node>();
         private readonly Node _rootNode;
@@ -34,6 +35,7 @@ namespace VirtualTreeView.Collection
             /// The item.
             /// </value>
             public object Item { get; }
+
             /// <summary>
             /// Gets the parent.
             /// </summary>
@@ -146,44 +148,29 @@ namespace VirtualTreeView.Collection
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="FlatCollection"/> class.
+        /// Initializes a new instance of the <see cref="FlatCollection" /> class.
         /// </summary>
-        /// <param name="source">The source.</param>
+        /// <param name="hierarchicalSource">The hierarchical source.</param>
         /// <param name="target">The target.</param>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// </exception>
-        /// <exception cref="System.ArgumentException">Must be empty</exception>
-        /// <exception cref="ArgumentNullException"><paramref name="source" />.</exception>
-        /// <exception cref="ArgumentNullException"><paramref name="source" />.</exception>
         /// <exception cref="ArgumentException">Must be empty</exception>
-        protected FlatCollection(IEnumerable source, IList target)
+        /// <exception cref="System.ArgumentNullException"></exception>
+        /// <exception cref="System.ArgumentException">Must be empty</exception>
+        public FlatCollection(IHierarchicalSource hierarchicalSource, IList target)
         {
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
+            if (hierarchicalSource == null)
+                throw new ArgumentNullException(nameof(hierarchicalSource));
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
             if (target.Count > 0)
                 throw new ArgumentException(@"Must be empty", nameof(target));
+            _hierarchicalSource = hierarchicalSource;
             _target = target;
             _rootNode = new Node(null, null) { IsExpanded = true };
-            _nodesByChildren[source] = _rootNode;
-            SetChildrenSource(_rootNode, source);
-            LoadInitialValuesFromConstructor();
-        }
 
-        /// <summary>
-        /// Loads the initial values from constructor.
-        /// </summary>
-        protected virtual void LoadInitialValuesFromConstructor()
-        {
-            LoadInitialValues();
-        }
-
-        /// <summary>
-        /// Loads the initial values.
-        /// </summary>
-        protected void LoadInitialValues()
-        {
+            _nodesByChildren[_hierarchicalSource.Source] = _rootNode;
+            SetChildrenSource(_rootNode, _hierarchicalSource.Source);
             InsertRange(_rootNode, _rootNode.ChildrenSource, 0);
         }
 
@@ -197,27 +184,6 @@ namespace VirtualTreeView.Collection
             _nodes.Clear();
             _rootNode.VisualChildren.Clear();
         }
-
-        /// <summary>
-        /// Gets a value indicating whether the item is expanded.
-        /// </summary>
-        /// <param name="item">The item.</param>
-        /// <returns></returns>
-        protected abstract bool GetIsExpanded(object item);
-
-        /// <summary>
-        /// Gets the item children.
-        /// </summary>
-        /// <param name="item">The item.</param>
-        /// <returns></returns>
-        protected abstract IEnumerable GetChildren(object item);
-
-        /// <summary>
-        /// Gets the container for item.
-        /// </summary>
-        /// <param name="item">The item.</param>
-        /// <returns></returns>
-        protected abstract object GetContainerForItem(object item);
 
         /// <summary>
         /// Expands the specified item in the target list.
@@ -239,7 +205,7 @@ namespace VirtualTreeView.Collection
 
             itemNode.IsExpanded = true;
 
-            var itemChildren = GetChildren(itemNode.Item);
+            var itemChildren = _hierarchicalSource.GetChildren(itemNode.Item);
             SetChildrenSource(itemNode, itemChildren);
             if (itemChildren != null)
                 InsertRange(itemNode, itemChildren, 0);
@@ -343,15 +309,15 @@ namespace VirtualTreeView.Collection
         {
             // insert index is parent node + 1 (parent node itself) + previous siblings size
             var insertIndex = parentNode.Index + 1 + parentNode.GetChildOffset(itemIndex);
-            _target.Insert(insertIndex, GetContainerForItem(item));
+            _target.Insert(insertIndex, _hierarchicalSource.GetContainerForItem(item));
 
-            var itemNode = new Node(item, parentNode) { IsExpanded = GetIsExpanded(item) };
+            var itemNode = new Node(item, parentNode) { IsExpanded = _hierarchicalSource.GetIsExpanded(item) };
             parentNode.InsertVisualChild(itemNode, itemIndex);
             _nodes[item] = itemNode;
 
             if (itemNode.IsExpanded)
             {
-                var itemChildren = GetChildren(item);
+                var itemChildren = _hierarchicalSource.GetChildren(item);
                 if (itemChildren != null)
                 {
                     SetChildrenSource(itemNode, itemChildren);
@@ -365,6 +331,10 @@ namespace VirtualTreeView.Collection
         {
             if (ReferenceEquals(itemNode.ChildrenSource, itemChildren))
                 return;
+
+            //itemNode.ChildrenSource.IfType<INotifyPropertyChanged>(p => p.PropertyChanged -= OnSourcePropertyChanged);
+            //itemChildren.IfType<INotifyPropertyChanged>(p => p.PropertyChanged -= OnSourcePropertyChanged);
+
             if (itemNode.ChildrenSource != null)
                 _nodesByChildren.Remove(itemNode.ChildrenSource);
             itemNode.ChildrenSource.IfType<INotifyCollectionChanged>(c => c.CollectionChanged -= OnSourceCollectionChanged);

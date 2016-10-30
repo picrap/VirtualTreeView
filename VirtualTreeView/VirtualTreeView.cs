@@ -62,8 +62,8 @@ namespace VirtualTreeView
         /// </value>
         public bool OptimizeItemBindings { get; set; } = true;
 
-        private VirtualTreeViewItemFlatCollection FlatItems { get; }
-        private VirtualTreeViewItemsSourceFlatCollection FlatItemsSource { get; set; }
+        private FlatCollection FlatItems { get; }
+        private FlatCollection FlatItemsSource { get; set; }
 
         /// <summary>
         ///     Event fired when <see cref="SelectedItem"/> changes.
@@ -102,7 +102,7 @@ namespace VirtualTreeView
         /// </summary>
         public VirtualTreeView()
         {
-            FlatItems = new VirtualTreeViewItemFlatCollection(HierarchicalItems, Items);
+            FlatItems = new FlatCollection(new ItemHierarchicalSource(HierarchicalItems), Items);
             HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsCollectionChanged);
         }
 
@@ -146,7 +146,7 @@ namespace VirtualTreeView
         private void SetItemsSource(IEnumerable value)
         {
             var itemsSource = new ObservableCollection<object>();
-            FlatItemsSource = new VirtualTreeViewItemsSourceFlatCollection(value, itemsSource, this);
+            FlatItemsSource = new FlatCollection(new ItemSourceHierarchicalSource(value, this), itemsSource);
             // now setting the flat source that the ItemsControl will use
             SetItemsSource(itemsSource);
         }
