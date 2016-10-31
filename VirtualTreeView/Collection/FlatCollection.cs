@@ -221,8 +221,10 @@ namespace VirtualTreeView.Collection
 
         private void OnSourceCollectionChanged(FlatNode itemNode, NotifyCollectionChangedEventArgs e)
         {
-            if (!itemNode.IsExpanded)
-                return;
+            // at any level, a parent may be collapsed, so we won't update anything at all here
+            for (var ancestor = itemNode; ancestor != null; ancestor = ancestor.Parent)
+                if (!ancestor.IsExpanded)
+                    return;
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
