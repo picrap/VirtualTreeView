@@ -34,7 +34,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="item">The item.</param>
         /// <returns></returns>
-        public bool GetIsExpanded(object item)
+        public bool IsExpanded(object item)
         {
             var virtualTreeViewItem = item as VirtualTreeViewItem;
             if (virtualTreeViewItem != null)

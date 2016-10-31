@@ -23,7 +23,7 @@ namespace VirtualTreeView.Collection
         /// </summary>
         /// <param name="item">The item.</param>
         /// <returns></returns>
-        bool GetIsExpanded(object item);
+        bool IsExpanded(object item);
 
         /// <summary>
         /// Gets the item children.

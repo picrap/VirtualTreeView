@@ -116,8 +116,9 @@ namespace VirtualTreeView.Collection
             if (!itemNode.IsExpanded)
                 return;
 
-            Delete(itemNode.VisualChildren.ToArray());
             itemNode.IsExpanded = false;
+
+            Delete(itemNode.VisualChildren.ToArray());
         }
 
         private void Delete(FlatNode[] nodes)
@@ -131,10 +132,6 @@ namespace VirtualTreeView.Collection
 
                 var nodeIndex = node.Parent.VisualChildren.IndexOf(node);
                 var index = GetNodeIndex(node.Parent, nodeIndex);
-                if (_target[index] != node.Item)
-                {
-
-                }
                 _target.RemoveAt(index);
                 _nodes.Remove(node.Item);
                 node.Parent.RemoveVisualChild(nodeIndex);
@@ -173,7 +170,7 @@ namespace VirtualTreeView.Collection
             var insertIndex = GetNodeIndex(parentNode, itemIndex);
             _target.Insert(insertIndex, _hierarchicalSource.GetContainerForItem(item));
 
-            var itemNode = new FlatNode(item, parentNode) { IsExpanded = _hierarchicalSource.GetIsExpanded(item) };
+            var itemNode = new FlatNode(item, parentNode) { IsExpanded = _hierarchicalSource.IsExpanded(item) };
             parentNode.InsertVisualChild(itemNode, itemIndex);
             _nodes[item] = itemNode;
 
