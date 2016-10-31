@@ -253,7 +253,7 @@ namespace VirtualTreeView
                 item.ParentTreeViewItem = this;
             }
         }
-        
+
         private static void OnIsExpandedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var item = (VirtualTreeViewItem)d;

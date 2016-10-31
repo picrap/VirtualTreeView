@@ -43,6 +43,10 @@
   <PropertyGroup>
     <AssemblyOriginatorKeyFile>Properties\VirtualTreeView.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>
+    </ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System" />
@@ -56,6 +60,7 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Collection\FlatNode.cs" />
     <Compile Include="Collection\IHierarchicalSource.cs" />
     <Compile Include="Collection\IndexedCollection.cs" />
     <Compile Include="Collection\NotifyCollectionChangedExtensions.cs" />
@@ -83,7 +88,9 @@
     <None Include="Properties\VirtualTreeView.snk" />
     <None Include="VirtualTreeView.nuspec" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Resource Include="VirtualTreeView.ico" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

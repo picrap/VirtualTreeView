@@ -19,133 +19,9 @@ namespace VirtualTreeView.Collection
     {
         private readonly IHierarchicalSource _hierarchicalSource;
         private readonly IList _target;
-        private readonly IDictionary<object, Node> _nodes = new Dictionary<object, Node>();
-        private readonly Node _rootNode;
-        private readonly IDictionary<IEnumerable, Node> _nodesByChildren = new Dictionary<IEnumerable, Node>();
-
-        /// <summary>
-        /// This is a visual node
-        /// </summary>
-        private class Node
-        {
-            /// <summary>
-            /// Gets the item.
-            /// </summary>
-            /// <value>
-            /// The item.
-            /// </value>
-            public object Item { get; }
-
-            /// <summary>
-            /// Gets the parent.
-            /// </summary>
-            /// <value>
-            /// The parent.
-            /// </value>
-            public Node Parent { get; }
-
-            /// <summary>
-            /// The visual children
-            /// </summary>
-            public IList<Node> VisualChildren { get; } = new List<Node>();
-
-            public IEnumerable ChildrenSource { get; set; }
-
-            public bool IsExpanded { get; set; }
-
-            private int? _size;
-
-            public int Size
-            {
-                get
-                {
-                    if (!_size.HasValue)
-                        _size = VisualChildren != null ? VisualChildren.Sum(c => c.Size) + 1 : 1;
-                    return _size.Value;
-                }
-            }
-
-            /// <summary>
-            /// Initializes a new instance of the <see cref="Node"/> class.
-            /// </summary>
-            /// <param name="item">The item.</param>
-            /// <param name="parent">The parent.</param>
-            public Node(object item, Node parent)
-            {
-                Item = item;
-                Parent = parent;
-            }
-
-            /// <summary>
-            /// Gets the child offset, related to parent.
-            /// </summary>
-            /// <param name="childIndex">Index of the child.</param>
-            /// <returns></returns>
-            public int GetChildOffset(int childIndex) => VisualChildren.Take(childIndex).Sum(c => c.Size);
-
-            private int? _childOffset;
-
-            /// <summary>
-            /// Gets the child offset of this node, related to parent.
-            /// </summary>
-            /// <value>
-            /// The child offset.
-            /// </value>
-            public int ChildOffset
-            {
-                get
-                {
-                    if (!_childOffset.HasValue)
-                        _childOffset = Parent.GetChildOffset(Parent.VisualChildren.IndexOf(this));
-                    return _childOffset.Value;
-                }
-            }
-
-            /// <summary>
-            /// Gets the flat index of the given node.
-            /// </summary>
-            /// <returns></returns>
-            public int Index
-            {
-                get
-                {
-                    var parent = Parent;
-                    if (parent == null) // this is the root node
-                        return -1; // which does not exist
-                    var childOffset = ChildOffset;
-                    // parent to child + parent + parent index
-                    return childOffset + 1 + parent.Index;
-                }
-            }
-
-            /// <summary>
-            /// Inserts the visual child.
-            /// And invalidates all impacted measures
-            /// </summary>
-            /// <param name="node">The node.</param>
-            /// <param name="index">The index.</param>
-            public void InsertVisualChild(Node node, int index)
-            {
-                VisualChildren.Insert(index, node);
-                for (int i = index + 1; i < VisualChildren.Count; i++)
-                    VisualChildren[i]._childOffset++;
-                for (var ancestor = this; ancestor != null; ancestor = ancestor.Parent)
-                    ancestor._size++;
-            }
-
-            /// <summary>
-            /// Removes the visual child.
-            /// </summary>
-            /// <param name="index">The index.</param>
-            public void RemoveVisualChild(int index)
-            {
-                VisualChildren.RemoveAt(index);
-                for (int i = index; i < VisualChildren.Count; i++)
-                    VisualChildren[i]._childOffset--;
-                for (var ancestor = this; ancestor != null; ancestor = ancestor.Parent)
-                    ancestor._size--;
-            }
-        }
+        private readonly IDictionary<object, FlatNode> _nodes = new Dictionary<object, FlatNode>();
+        private readonly FlatNode _rootNode;
+        private readonly IDictionary<IEnumerable, FlatNode> _nodesByChildren = new Dictionary<IEnumerable, FlatNode>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FlatCollection" /> class.
@@ -167,7 +43,7 @@ namespace VirtualTreeView.Collection
                 throw new ArgumentException(@"Must be empty", nameof(target));
             _hierarchicalSource = hierarchicalSource;
             _target = target;
-            _rootNode = new Node(null, null) { IsExpanded = true };
+            _rootNode = new FlatNode(null, null) { IsExpanded = true };
 
             _nodesByChildren[_hierarchicalSource.Source] = _rootNode;
             SetChildrenSource(_rootNode, _hierarchicalSource.Source);
@@ -198,7 +74,7 @@ namespace VirtualTreeView.Collection
             ExpandNode(itemNode);
         }
 
-        private void ExpandNode(Node itemNode)
+        private void ExpandNode(FlatNode itemNode)
         {
             if (itemNode.IsExpanded)
                 return;
@@ -235,28 +111,35 @@ namespace VirtualTreeView.Collection
             CollapseNode(itemNode);
         }
 
-        private void CollapseNode(Node itemNode)
+        private void CollapseNode(FlatNode itemNode)
         {
             if (!itemNode.IsExpanded)
                 return;
 
-            Delete(itemNode.VisualChildren);
+            Delete(itemNode.VisualChildren.ToArray());
             itemNode.IsExpanded = false;
         }
 
-
-        private void Delete(IList<Node> nodes)
+        private void Delete(FlatNode[] nodes)
         {
-            if (nodes.Count == 0)
+            if (nodes.Length == 0)
                 return;
 
-            var index = nodes[0].Index;
-            var count = nodes.Sum(n => n.Size);
-            RemoveRange(index, count);
             foreach (var node in nodes.ToArray())
             {
-                node.Parent.RemoveVisualChild(node.Parent.VisualChildren.IndexOf(node));
-                Unlink(node);
+                Delete(node.VisualChildren.ToArray());
+
+                var nodeIndex = node.Parent.VisualChildren.IndexOf(node);
+                var index = GetNodeIndex(node.Parent, nodeIndex);
+                if (_target[index] != node.Item)
+                {
+
+                }
+                _target.RemoveAt(index);
+                _nodes.Remove(node.Item);
+                node.Parent.RemoveVisualChild(nodeIndex);
+                if (node.Parent.VisualChildren.Count == 0)
+                    _nodesByChildren.Remove(node.Parent.ChildrenSource);
             }
         }
 
@@ -266,26 +149,6 @@ namespace VirtualTreeView.Collection
             Delete(itemsNodes);
         }
 
-        private void RemoveRange(int index, int count)
-        {
-            while (count-- > 0)
-                _target.RemoveAt(index);
-        }
-
-        private void Unlink(Node node)
-        {
-            if (node.VisualChildren != null)
-                foreach (var child in node.VisualChildren)
-                    Unlink(child);
-
-            if (node.ChildrenSource != null)
-            {
-                _nodesByChildren.Remove(node.ChildrenSource);
-                node.ChildrenSource.IfType<INotifyCollectionChanged>(c => c.CollectionChanged -= OnSourceCollectionChanged);
-            }
-            _nodes.Remove(node.Item);
-        }
-
         /// <summary>
         /// Gets the parent item from given item or null for topmost items
         /// </summary>
@@ -293,25 +156,24 @@ namespace VirtualTreeView.Collection
         /// <returns>The parent or null for topmost items</returns>
         public object GetParent(object item)
         {
-            Node node;
+            FlatNode node;
             if (!_nodes.TryGetValue(item, out node))
                 return null;
             return node.Parent?.Item;
         }
 
-        private void InsertRange(Node parentNode, IEnumerable items, int itemIndex)
+        private void InsertRange(FlatNode parentNode, IEnumerable items, int itemIndex)
         {
             foreach (var item in items)
                 Insert(parentNode, item, itemIndex++);
         }
 
-        private void Insert(Node parentNode, object item, int itemIndex)
+        private void Insert(FlatNode parentNode, object item, int itemIndex)
         {
-            // insert index is parent node + 1 (parent node itself) + previous siblings size
-            var insertIndex = parentNode.Index + 1 + parentNode.GetChildOffset(itemIndex);
+            var insertIndex = GetNodeIndex(parentNode, itemIndex);
             _target.Insert(insertIndex, _hierarchicalSource.GetContainerForItem(item));
 
-            var itemNode = new Node(item, parentNode) { IsExpanded = _hierarchicalSource.GetIsExpanded(item) };
+            var itemNode = new FlatNode(item, parentNode) { IsExpanded = _hierarchicalSource.GetIsExpanded(item) };
             parentNode.InsertVisualChild(itemNode, itemIndex);
             _nodes[item] = itemNode;
 
@@ -327,13 +189,23 @@ namespace VirtualTreeView.Collection
             }
         }
 
-        private void SetChildrenSource(Node itemNode, IEnumerable itemChildren)
+        /// <summary>
+        /// Gets the index of the node (where it must be inserted or removed).
+        /// </summary>
+        /// <param name="parentNode">The parent node.</param>
+        /// <param name="itemIndex">Index of the item.</param>
+        /// <returns></returns>
+        private static int GetNodeIndex(FlatNode parentNode, int itemIndex)
+        {
+            // node index is parent node + 1 (parent node itself) + previous siblings size
+            var nodeIndex = parentNode.Index + 1 + parentNode.GetChildOffset(itemIndex);
+            return nodeIndex;
+        }
+
+        private void SetChildrenSource(FlatNode itemNode, IEnumerable itemChildren)
         {
             if (ReferenceEquals(itemNode.ChildrenSource, itemChildren))
                 return;
-
-            //itemNode.ChildrenSource.IfType<INotifyPropertyChanged>(p => p.PropertyChanged -= OnSourcePropertyChanged);
-            //itemChildren.IfType<INotifyPropertyChanged>(p => p.PropertyChanged -= OnSourcePropertyChanged);
 
             if (itemNode.ChildrenSource != null)
                 _nodesByChildren.Remove(itemNode.ChildrenSource);
@@ -350,7 +222,7 @@ namespace VirtualTreeView.Collection
             OnSourceCollectionChanged(node, e);
         }
 
-        private void OnSourceCollectionChanged(Node itemNode, NotifyCollectionChangedEventArgs e)
+        private void OnSourceCollectionChanged(FlatNode itemNode, NotifyCollectionChangedEventArgs e)
         {
             if (!itemNode.IsExpanded)
                 return;
