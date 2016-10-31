@@ -36,7 +36,7 @@ using System.Windows.Markup;
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
-[assembly: AssemblyVersion("0.2.6")]
+[assembly: AssemblyVersion("0.2.7")]
 
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]

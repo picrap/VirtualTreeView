@@ -3,6 +3,7 @@
 
 namespace VirtualTreeView
 {
+    using System;
     using System.Collections;
     using System.Windows.Controls;
     using Collection;
@@ -21,7 +22,7 @@ namespace VirtualTreeView
         public IEnumerable Source { get; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ItemHierarchicalSource"/> class.
+        /// Initializes a new instance of the <see cref="ItemHierarchicalSource" /> class.
         /// </summary>
         /// <param name="source">The source.</param>
         public ItemHierarchicalSource(IEnumerable source)

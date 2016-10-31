@@ -10,6 +10,7 @@ namespace VirtualTreeView
     using System.Windows.Controls;
     using System.Windows.Input;
     using Collection;
+    using Reflection;
 
     /// <summary>
     /// Base item for <see cref="VirtualTreeView"/>

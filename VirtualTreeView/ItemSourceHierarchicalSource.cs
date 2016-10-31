@@ -3,6 +3,7 @@
 
 namespace VirtualTreeView
 {
+    using System;
     using System.Collections;
     using System.Windows.Controls;
     using Collection;

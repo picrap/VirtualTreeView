@@ -64,21 +64,21 @@ namespace VirtualTreeViewDemo
                 root.Add(i);
         }
 
-        private void ReplaceFirstContent(object sender, RoutedEventArgs e)
-        {
-            ReplaceFirstContent(DemoItem.Root);
-            ReplaceFirstContent(DemoItem.Root2);
-        }
+        //private void ReplaceFirstContent(object sender, RoutedEventArgs e)
+        //{
+        //    ReplaceFirstContent(DemoItem.Root);
+        //    ReplaceFirstContent(DemoItem.Root2);
+        //}
 
-        private static void ReplaceFirstContent(ObservableCollection<object> root)
-        {
-            var firstItem = root[0] as DemoItem;
-            if (firstItem == null)
-                root[0] = firstItem = new DemoItem { Label = "1" };
-            firstItem.Children.Clear();
-            foreach (var childItem in DemoItem.CreateItems(1, firstItem, seed: 3))
-                firstItem.Children.Add(childItem);
-        }
+        //private static void ReplaceFirstContent(ObservableCollection<object> root)
+        //{
+        //    var firstItem = root[0] as DemoItem;
+        //    if (firstItem == null)
+        //        root[0] = firstItem = new DemoItem { Label = "1" };
+        //    firstItem.Children.Clear();
+        //    foreach (var childItem in DemoItem.CreateItems(1, firstItem, seed: 3))
+        //        firstItem.Children.Add(childItem);
+        //}
 
         private void AppendFirstContent(object sender, RoutedEventArgs e)
         {

@@ -54,25 +54,30 @@ namespace VirtualTreeView.Collection
         /// <summary>
         /// Gets the size.
         /// </summary>
-        /// <returns>
-        ///     The size.
-        /// </returns>
-        public int GetSize()
+        /// <value>
+        ///   The size.
+        /// </value>
+        public int Size
         {
-            if (!_size.HasValue)
-                _size = VisualChildren != null ? VisualChildren.Sum(c => c.GetSize()) + 1 : 1;
-            return _size.Value;
+            get
+            {
+                if (!_size.HasValue)
+                    _size = VisualChildren != null ? VisualChildren.Sum(c => c.Size) + 1 : 1;
+                return _size.Value;
+            }
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="FlatNode"/> class.
+        /// Initializes a new instance of the <see cref="FlatNode" /> class.
         /// </summary>
         /// <param name="item">The item.</param>
         /// <param name="parent">The parent.</param>
-        public FlatNode(object item, FlatNode parent)
+        /// <param name="isExpanded">if set to <c>true</c> [is expanded].</param>
+        public FlatNode(object item, FlatNode parent, bool isExpanded)
         {
             Item = item;
             Parent = parent;
+            IsExpanded = isExpanded;
         }
 
         /// <summary>
@@ -80,7 +85,7 @@ namespace VirtualTreeView.Collection
         /// </summary>
         /// <param name="childIndex">Index of the child.</param>
         /// <returns></returns>
-        public int GetChildOffset(int childIndex) => VisualChildren.Take(childIndex).Sum(c => c.GetSize());
+        public int GetChildOffset(int childIndex) => VisualChildren.Take(childIndex).Sum(c => c.Size);
 
         private int? _childOffset;
 
@@ -128,19 +133,7 @@ namespace VirtualTreeView.Collection
             VisualChildren.Insert(index, node);
             for (int i = index + 1; i < VisualChildren.Count; i++)
                 VisualChildren[i]._childOffset++;
-            for (var ancestor = this; ;)
-            {
-                ancestor._size++;
-                var ancestorParent = ancestor.Parent;
-                if (ancestorParent == null)
-                    break;
-
-                var ancestorIndex = ancestorParent.VisualChildren.IndexOf(ancestor);
-                while (++ancestorIndex < ancestorParent.VisualChildren.Count)
-                    ancestorParent.VisualChildren[ancestorIndex]._childOffset++;
-
-                ancestor = ancestorParent;
-            }
+            AdjustAncestorsSize(+1);
         }
 
         /// <summary>
@@ -152,16 +145,21 @@ namespace VirtualTreeView.Collection
             VisualChildren.RemoveAt(index);
             for (int i = index; i < VisualChildren.Count; i++)
                 VisualChildren[i]._childOffset--;
+            AdjustAncestorsSize(-1);
+        }
+
+        private void AdjustAncestorsSize(int delta)
+        {
             for (var ancestor = this; ;)
             {
-                ancestor._size--;
+                ancestor._size += delta;
                 var ancestorParent = ancestor.Parent;
                 if (ancestorParent == null)
                     break;
 
                 var ancestorIndex = ancestorParent.VisualChildren.IndexOf(ancestor);
                 while (++ancestorIndex < ancestorParent.VisualChildren.Count)
-                    ancestorParent.VisualChildren[ancestorIndex]._childOffset--;
+                    ancestorParent.VisualChildren[ancestorIndex]._childOffset += delta;
 
                 ancestor = ancestorParent;
             }

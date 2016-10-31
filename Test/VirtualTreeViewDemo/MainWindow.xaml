@@ -164,7 +164,7 @@
 
         <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Append demo items" Click="AppendDemoItems" />
-            <Button Content="Replace first item content" Click="ReplaceFirstContent" />
+            <!--<Button Content="Replace first item content" Click="ReplaceFirstContent" />-->
             <Button Content="Append first item content" Click="AppendFirstContent" />
         </StackPanel>
 

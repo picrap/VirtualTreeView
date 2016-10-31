@@ -43,9 +43,8 @@ namespace VirtualTreeView.Collection
                 throw new ArgumentException(@"Must be empty", nameof(target));
             _hierarchicalSource = hierarchicalSource;
             _target = target;
-            _rootNode = new FlatNode(null, null) { IsExpanded = true };
+            _rootNode = new FlatNode(null, null, true);
 
-            _nodesByChildren[_hierarchicalSource.Source] = _rootNode;
             SetChildrenSource(_rootNode, _hierarchicalSource.Source);
             InsertRange(_rootNode, _rootNode.ChildrenSource, 0);
         }
@@ -118,7 +117,7 @@ namespace VirtualTreeView.Collection
 
             itemNode.IsExpanded = false;
 
-            Delete(itemNode.VisualChildren.ToArray());
+            Delete(itemNode);
         }
 
         private void Delete(FlatNode[] nodes)
@@ -128,16 +127,20 @@ namespace VirtualTreeView.Collection
 
             foreach (var node in nodes.ToArray())
             {
-                Delete(node.VisualChildren.ToArray());
+                Delete(node);
 
                 var nodeIndex = node.Parent.VisualChildren.IndexOf(node);
                 var index = GetNodeIndex(node.Parent, nodeIndex);
                 _target.RemoveAt(index);
                 _nodes.Remove(node.Item);
                 node.Parent.RemoveVisualChild(nodeIndex);
-                if (node.Parent.VisualChildren.Count == 0)
-                    _nodesByChildren.Remove(node.Parent.ChildrenSource);
             }
+        }
+
+        private void Delete(FlatNode node)
+        {
+            Delete(node.VisualChildren.ToArray());
+            SetChildrenSource(node, null);
         }
 
         private void DeleteRange(IEnumerable items)
@@ -170,7 +173,7 @@ namespace VirtualTreeView.Collection
             var insertIndex = GetNodeIndex(parentNode, itemIndex);
             _target.Insert(insertIndex, _hierarchicalSource.GetContainerForItem(item));
 
-            var itemNode = new FlatNode(item, parentNode) { IsExpanded = _hierarchicalSource.IsExpanded(item) };
+            var itemNode = new FlatNode(item, parentNode, _hierarchicalSource.IsExpanded(item));
             parentNode.InsertVisualChild(itemNode, itemIndex);
             _nodes[item] = itemNode;
 
@@ -180,7 +183,6 @@ namespace VirtualTreeView.Collection
                 if (itemChildren != null)
                 {
                     SetChildrenSource(itemNode, itemChildren);
-                    _nodesByChildren[itemChildren] = itemNode;
                     InsertRange(itemNode, itemChildren, 0);
                 }
             }
@@ -215,7 +217,10 @@ namespace VirtualTreeView.Collection
 
         private void OnSourceCollectionChanged(object itemChildren, NotifyCollectionChangedEventArgs e)
         {
-            var node = _nodesByChildren[(IEnumerable)itemChildren];
+            FlatNode node;
+            // TODO: this should never happen
+            if (!_nodesByChildren.TryGetValue((IEnumerable)itemChildren, out node))
+                return;
             OnSourceCollectionChanged(node, e);
         }
 
@@ -225,6 +230,7 @@ namespace VirtualTreeView.Collection
             for (var ancestor = itemNode; ancestor != null; ancestor = ancestor.Parent)
                 if (!ancestor.IsExpanded)
                     return;
+
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:

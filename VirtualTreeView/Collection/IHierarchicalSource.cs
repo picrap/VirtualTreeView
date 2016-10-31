@@ -3,6 +3,7 @@
 
 namespace VirtualTreeView.Collection
 {
+    using System;
     using System.Collections;
 
     /// <summary>
