@@ -53,5 +53,5 @@ Currently it has only the features I needed (which is showing items and let them
 
 ### How to contribute
 
-[Fork it](https://github.com/picrap/VirtualTreeView#fork-destination-box), update it, and submit your pull requests.  
+Fork it, update it, and submit your pull requests.  
 Alternatively you can [submit requests](https://github.com/picrap/VirtualTreeView/issues).  
