@@ -49,8 +49,7 @@ Currently it has only the features I needed (which is showing items and let them
 
 ### What does not
 
-* With binding, `INotifyPropertyChange` **does not work at all**, since the binding is partly simulated (because the view items are not generated).
-
+* With binding, `INotifyPropertyChanged` **does not work at all**, since the binding is partly simulated (because the view items are not generated).
 
 ### How to contribute
 
