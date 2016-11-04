@@ -3,7 +3,6 @@
 
 namespace VirtualTreeView
 {
-    using System;
     using System.Collections;
     using System.Windows.Controls;
     using Collection;
@@ -11,7 +10,7 @@ namespace VirtualTreeView
     /// <summary>
     /// Specialized <see cref="FlatCollection"/> for <see cref="ItemsControl.ItemsSource"/>.
     /// </summary>
-    public class ItemSourceHierarchicalSource : IHierarchicalSource
+    public class ItemsSourceHierarchicalSource : IHierarchicalSource
     {
         private readonly VirtualTreeView _treeView;
 
@@ -24,16 +23,16 @@ namespace VirtualTreeView
         public IEnumerable Source { get; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ItemSourceHierarchicalSource"/> class.
+        /// Initializes a new instance of the <see cref="ItemsSourceHierarchicalSource"/> class.
         /// </summary>
         /// <param name="source">The source.</param>
         /// <param name="treeView">The tree view.</param>
-        public ItemSourceHierarchicalSource(IEnumerable source, VirtualTreeView treeView)
+        public ItemsSourceHierarchicalSource(IEnumerable source, VirtualTreeView treeView)
         {
             _treeView = treeView;
             Source = source;
         }
-        
+
         /// <summary>
         /// Gets a value indicating whether the item is expanded.
         /// </summary>

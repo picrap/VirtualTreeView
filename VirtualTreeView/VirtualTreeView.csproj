@@ -71,7 +71,7 @@
     <Compile Include="ItemHierarchicalSource.cs" />
     <Compile Include="VirtualTreeViewItemHolder.cs" />
     <Compile Include="VirtualTreeViewItem.cs" />
-    <Compile Include="ItemSourceHierarchicalSource.cs" />
+    <Compile Include="ItemsSourceHierarchicalSource.cs" />
     <Page Include="Themes\Generic.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

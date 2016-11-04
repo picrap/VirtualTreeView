@@ -146,7 +146,7 @@ namespace VirtualTreeView
         private void SetItemsSource(IEnumerable value)
         {
             var itemsSource = new ObservableCollection<object>();
-            FlatItemsSource = new FlatCollection(new ItemSourceHierarchicalSource(value, this), itemsSource);
+            FlatItemsSource = new FlatCollection(new ItemsSourceHierarchicalSource(value, this), itemsSource);
             // now setting the flat source that the ItemsControl will use
             SetItemsSource(itemsSource);
         }
