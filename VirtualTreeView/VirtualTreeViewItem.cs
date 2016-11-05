@@ -10,7 +10,6 @@ namespace VirtualTreeView
     using System.Windows.Controls;
     using System.Windows.Input;
     using Collection;
-    using Reflection;
 
     /// <summary>
     /// Base item for <see cref="VirtualTreeView"/>
@@ -102,8 +101,6 @@ namespace VirtualTreeView
         /// </summary>
         internal VirtualTreeViewItem ParentTreeViewItem { get; set; }
 
-        private bool _isGenerated;
-
         private int? _depth;
 
         /// <summary>
@@ -125,10 +122,9 @@ namespace VirtualTreeView
                 }
                 return _depth.Value;
             }
-            set
+            internal set
             {
                 _depth = value;
-                _isGenerated = true;
             }
         }
 
@@ -299,10 +295,14 @@ namespace VirtualTreeView
         /// <param name="e">The <see cref="T:System.Windows.RoutedEventArgs" /> that contains the event data.</param>
         protected override void OnGotFocus(RoutedEventArgs e)
         {
-            IsSelected = true;
+            ParentTreeView.Select(this, true);
             base.OnGotFocus(e);
         }
 
+        /// <summary>
+        /// Called when [is selected changed].
+        /// </summary>
+        /// <param name="selected">if set to <c>true</c> [selected].</param>
         private void OnIsSelectedChanged(bool selected)
         {
             var treeView = ParentTreeView;
@@ -311,49 +311,16 @@ namespace VirtualTreeView
 
             if (selected)
             {
-                if (treeView.SelectedItem != null)
-                {
-                    // behavior is different if item is generated (comes from data binding)
-                    // in generated mode, the SelectedItem points to item source, in simple mode it points to
-                    var container = GetContainerFromItem(treeView.SelectedItem);
-                    if (container != null)
-                        treeView.MutexDo(() => container.IsSelected = false); // because unselected must not be notified when another takes place
-                }
-                treeView.SelectedItem = GetItemFromContainer(this);
-
-                if (treeView.IsKeyboardFocusWithin && !IsKeyboardFocusWithin)
-                    Focus();
-
+                treeView.Select(this, false);
                 OnSelected(new RoutedEventArgs(SelectedEvent, this));
             }
             else
             {
-                if (ReferenceEquals(treeView.SelectedItem, DataContext))
-                    treeView.MutexDo(() => treeView.SelectedItem = null);
-
+                treeView.Deselect(this);
                 OnUnselected(new RoutedEventArgs(UnselectedEvent, this));
             }
         }
-
-        /// <summary>
-        /// Gets the item from container.
-        /// </summary>
-        /// <returns></returns>
-        private object GetItemFromContainer(VirtualTreeViewItem container)
-        {
-            return container._isGenerated ? container.DataContext : container;
-        }
-
-        /// <summary>
-        /// Gets the container from item.
-        /// </summary>
-        /// <param name="item">The item.</param>
-        /// <returns></returns>
-        private VirtualTreeViewItem GetContainerFromItem(object item)
-        {
-            return _isGenerated ? ParentTreeView.ItemContainerGenerator.ContainerFromItem(item) as VirtualTreeViewItem : item as VirtualTreeViewItem;
-        }
-
+        
         /// <summary>
         /// Invoked when an unhandled <see cref="E:System.Windows.Input.Keyboard.GotKeyboardFocus" /> attached event reaches an element in its route that is derived from this class. Implement this method to add class handling for this event.
         /// </summary>

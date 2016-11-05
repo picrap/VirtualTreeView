@@ -37,6 +37,24 @@ namespace VirtualTreeView
         public IList HierarchicalItems { get; } = new ObservableCollection<object>();
 
         /// <summary>
+        /// The selection mode property
+        /// </summary>
+        public static readonly DependencyProperty SelectionModeProperty = DependencyProperty.Register(
+            "SelectionMode", typeof(VirtualTreeViewSelectionMode), typeof(VirtualTreeView), new PropertyMetadata(VirtualTreeViewSelectionMode.Single));
+
+        /// <summary>
+        /// Gets or sets the selection mode.
+        /// </summary>
+        /// <value>
+        /// The selection mode.
+        /// </value>
+        public VirtualTreeViewSelectionMode SelectionMode
+        {
+            get { return (VirtualTreeViewSelectionMode)GetValue(SelectionModeProperty); }
+            set { SetValue(SelectionModeProperty, value); }
+        }
+
+        /// <summary>
         /// The selected item property
         /// </summary>
         public static readonly DependencyProperty SelectedItemProperty = DependencyProperty.Register(
@@ -53,6 +71,14 @@ namespace VirtualTreeView
             get { return GetValue(SelectedItemProperty); }
             set { SetValue(SelectedItemProperty, value); }
         }
+
+        /// <summary>
+        /// Gets the selected items.
+        /// </summary>
+        /// <value>
+        /// The selected items.
+        /// </value>
+        public ObservableCollection<object> SelectedItems { get; } = new ObservableCollection<object>();
 
         /// <summary>
         /// Gets or sets a value indicating whether [optimize item bindings].
@@ -104,6 +130,7 @@ namespace VirtualTreeView
         {
             FlatItems = new FlatCollection(new ItemHierarchicalSource(HierarchicalItems), Items);
             HierarchicalItems.IfType<INotifyCollectionChanged>(nc => nc.CollectionChanged += OnHierarchicalItemsCollectionChanged);
+            SelectedItems.CollectionChanged += OnSelectedItemsCollectionChanged;
         }
 
         private void OnHierarchicalItemsCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -177,6 +204,13 @@ namespace VirtualTreeView
         private void OnSelectedItemChanged(object oldValue, object newValue)
         {
             var e = new RoutedPropertyChangedEventArgs<object>(oldValue, newValue, SelectedItemChangedEvent);
+            if (ReferenceEquals(SelectedItems.FirstOrDefault(), SelectedItem))
+                return;
+
+            SelectedItems.Clear();
+            if (SelectedItem != null)
+                SelectedItems.Add(SelectedItem);
+
             OnSelectedItemChanged(e);
         }
 
@@ -260,6 +294,97 @@ namespace VirtualTreeView
                     _mutex = false;
                 }
             }
+        }
+
+        /// <summary>
+        /// Selects the specified item.
+        /// </summary>
+        /// <param name="treeViewItem">The item.</param>
+        /// <param name="unselectOthers">if set to <c>true</c> [unselect other items].</param>
+        public void Select(VirtualTreeViewItem treeViewItem, bool unselectOthers)
+        {
+            if (SelectionMode == VirtualTreeViewSelectionMode.None)
+                return;
+
+            var item = ItemContainerGenerator.ItemFromContainer(treeViewItem);
+
+            // remove other items
+            if (unselectOthers || SelectionMode == VirtualTreeViewSelectionMode.Single)
+            {
+                var otherSelection = SelectedItems.Where(s => !ReferenceEquals(s, item)).ToArray();
+                foreach (var o in otherSelection)
+                    SelectedItems.Remove(o);
+            }
+
+            if (IsKeyboardFocusWithin && !treeViewItem.IsKeyboardFocusWithin)
+                treeViewItem.Focus();
+
+            if (!SelectedItems.Contains(item))
+                SelectedItems.Add(item);
+            treeViewItem.IsSelected = true;
+        }
+
+        private void OnSelectedItemsCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (SelectedItems.Count == 0)
+                SelectedItem = null;
+            else
+                SelectedItem = SelectedItems[0];
+
+            switch (e.Action)
+            {
+                case NotifyCollectionChangedAction.Add:
+                    OnSelect(e.NewItems);
+                    break;
+                case NotifyCollectionChangedAction.Remove:
+                    OnDeselect(e.OldItems);
+                    break;
+                case NotifyCollectionChangedAction.Replace:
+                    OnDeselect(e.OldItems);
+                    OnSelect(e.NewItems);
+                    break;
+                case NotifyCollectionChangedAction.Move:
+                    throw new NotImplementedException();
+                case NotifyCollectionChangedAction.Reset:
+                    // TODO optimize
+                    OnDeselect(Items.OfType<object>().ToArray());
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        private void OnDeselect(IEnumerable items)
+        {
+            foreach (var item in items)
+            {
+                var container = ItemContainerGenerator.ContainerFromItem(item) as VirtualTreeViewItem;
+                if (container != null)
+                    container.IsSelected = false;
+            }
+        }
+
+        private void OnSelect(IEnumerable items)
+        {
+            foreach (var item in items)
+            {
+                var container = ItemContainerGenerator.ContainerFromItem(item) as VirtualTreeViewItem;
+                if (container != null)
+                    container.IsSelected = true;
+            }
+        }
+
+        /// <summary>
+        /// Deselects the specified item.
+        /// </summary>
+        /// <param name="treeViewItem">The item.</param>
+        public void Deselect(VirtualTreeViewItem treeViewItem)
+        {
+            if (!treeViewItem.IsSelected)
+                return;
+            var item = ItemContainerGenerator.ItemFromContainer(treeViewItem);
+            SelectedItems.Remove(item);
+            treeViewItem.IsSelected = false;
         }
     }
 }
