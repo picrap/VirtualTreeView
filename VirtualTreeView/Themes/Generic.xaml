@@ -6,7 +6,6 @@
     <local:MarginConverter x:Key="MarginConverter"/>
 
     <Style TargetType="{x:Type local:VirtualTreeView}">
-        <!--<Setter Property="Background" Value="Yellow"/>-->
         <Setter Property="VirtualizingStackPanel.IsVirtualizing" Value="True"/>
         <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
         <Setter Property="ItemsPanel">
