@@ -25,6 +25,12 @@ namespace VirtualTreeViewDemo
                     _root = CreateItems(2, null);
                 return _root;
             }
+            set
+            {
+                _root.Clear();
+                foreach (var item in value)
+                    _root.Add(item);
+            }
         }
 
         private static ObservableCollection<object> _root2;
@@ -35,6 +41,12 @@ namespace VirtualTreeViewDemo
                 if (_root2 == null)
                     _root2 = CreateItems(2, null);
                 return _root2;
+            }
+            set
+            {
+                _root2.Clear();
+                foreach (var item in value)
+                    _root2.Add(item);
             }
         }
 

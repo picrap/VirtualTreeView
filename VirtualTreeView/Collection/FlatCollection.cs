@@ -80,7 +80,7 @@ namespace VirtualTreeView.Collection
 
             itemNode.IsExpanded = true;
 
-            var itemChildren = _hierarchicalSource.GetChildren(itemNode.Item);
+            var itemChildren = itemNode.Parent == null ? _hierarchicalSource.Source : _hierarchicalSource.GetChildren(itemNode.Item);
             SetChildrenSource(itemNode, itemChildren);
             if (itemChildren != null)
                 InsertRange(itemNode, itemChildren, 0);

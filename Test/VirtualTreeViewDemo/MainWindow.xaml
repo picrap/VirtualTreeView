@@ -166,6 +166,7 @@
             <Button Content="Append demo items" Click="AppendDemoItems" />
             <!--<Button Content="Replace first item content" Click="ReplaceFirstContent" />-->
             <Button Content="Append first item content" Click="AppendFirstContent" />
+            <Button Content="Reset content" Click="ResetContent" />
         </StackPanel>
 
         <!-- must be here, otherwise they don't work (WTF?) -->

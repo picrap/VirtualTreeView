@@ -94,5 +94,14 @@ namespace VirtualTreeViewDemo
             foreach (var childItem in DemoItem.CreateItems(1, firstItem, seed: 3, labelIndex: firstItem.Children.Count))
                 firstItem.Children.Add(childItem);
         }
+
+        private int _contentGeneration = 0;
+
+        private void ResetContent(object sender, RoutedEventArgs e)
+        {
+            ++_contentGeneration;
+            DemoItem.Root = DemoItem.CreateItems(2, null, _contentGeneration);
+            DemoItem.Root2 = DemoItem.CreateItems(2, null, _contentGeneration);
+        }
     }
 }
