@@ -46,7 +46,14 @@ namespace VirtualTreeView
             var value = _defaultValue;
             if (GetFromGeneratedContainer(item, ref value) || GetFromSourceProperty(item, ref value))
                 return value;
-            return GetFromNewContainer(item);
+            try
+            {
+                return GetFromNewContainer(item);
+            }
+            catch
+            {
+                return default(TValue);
+            }
         }
 
         /// <summary>
