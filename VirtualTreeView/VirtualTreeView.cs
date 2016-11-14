@@ -203,15 +203,13 @@ namespace VirtualTreeView
 
         private void OnSelectedItemChanged(object oldValue, object newValue)
         {
-            var e = new RoutedPropertyChangedEventArgs<object>(oldValue, newValue, SelectedItemChangedEvent);
-            if (ReferenceEquals(SelectedItems.FirstOrDefault(), SelectedItem))
-                return;
-
-            SelectedItems.Clear();
-            if (SelectedItem != null)
-                SelectedItems.Add(SelectedItem);
-
-            OnSelectedItemChanged(e);
+            MutexDo(delegate
+            {
+                SelectedItems.Clear();
+                if (SelectedItem != null)
+                    SelectedItems.Add(SelectedItem);
+            });
+            OnSelectedItemChanged(new RoutedPropertyChangedEventArgs<object>(oldValue, newValue, SelectedItemChangedEvent));
         }
 
         /// <summary>
@@ -326,11 +324,6 @@ namespace VirtualTreeView
 
         private void OnSelectedItemsCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (SelectedItems.Count == 0)
-                SelectedItem = null;
-            else
-                SelectedItem = SelectedItems[0];
-
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
@@ -352,6 +345,14 @@ namespace VirtualTreeView
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+
+            MutexDo(delegate
+            {
+                if (SelectedItems.Count == 0)
+                    SelectedItem = null;
+                else
+                    SelectedItem = SelectedItems[0];
+            });
         }
 
         private void OnDeselect(IEnumerable items)
