@@ -48,18 +48,7 @@ namespace VirtualTreeView.Collection
             SetChildrenSource(_rootNode, _hierarchicalSource.Source);
             InsertRange(_rootNode, _rootNode.ChildrenSource, 0);
         }
-
-        /// <summary>
-        /// Clears the collection.
-        /// </summary>
-        private void Clear()
-        {
-            _target.Clear();
-            _nodesByChildren.Clear();
-            _nodes.Clear();
-            _rootNode.VisualChildren.Clear();
-        }
-
+        
         /// <summary>
         /// Expands the specified item in the target list.
         /// The children are added to target list, below parent.

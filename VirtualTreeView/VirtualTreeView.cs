@@ -278,7 +278,7 @@ namespace VirtualTreeView
         /// Performs an action from a mutex: a nested action won't be run.
         /// </summary>
         /// <param name="action">The action.</param>
-        public void MutexDo(Action action)
+        private void MutexDo(Action action)
         {
             if (!_mutex)
             {
