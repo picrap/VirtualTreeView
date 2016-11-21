@@ -113,7 +113,7 @@
         </vtv:VirtualTreeView>
 
         <TreeView x:Name="TreeView" Grid.Column="1" Grid.Row="2" ItemsSource="{x:Static local:DemoItem.Root}"
-              VirtualizingPanel.IsContainerVirtualizable="true" VirtualizingPanel.IsVirtualizing="false" VirtualizingPanel.IsVirtualizingWhenGrouping="true"
+              VirtualizingPanel.IsContainerVirtualizable="true" VirtualizingPanel.IsVirtualizing="true" VirtualizingPanel.IsVirtualizingWhenGrouping="true"
                   >
             <TreeView.Resources>
                 <DataTemplate DataType="{x:Type local:ErrorItem}">
