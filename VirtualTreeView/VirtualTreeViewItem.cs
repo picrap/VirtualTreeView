@@ -91,10 +91,20 @@ namespace VirtualTreeView
             set { SetValue(LevelMarginProperty, value); }
         }
 
+        private VirtualTreeView _parentTreeView;
+
         /// <summary>
         ///     Walks up the parent chain of TreeViewItems to the top TreeView.
         /// </summary>
-        internal VirtualTreeView ParentTreeView { get; set; }
+        internal VirtualTreeView ParentTreeView
+        {
+            get { return _parentTreeView; }
+            set
+            {
+                _parentTreeView = value;
+                Header = new Grid();
+            }
+        }
 
         /// <summary>
         ///     Returns the immediate parent VirtualTreeViewItem. Null if the parent is a TreeView.
@@ -320,7 +330,7 @@ namespace VirtualTreeView
                 OnUnselected(new RoutedEventArgs(UnselectedEvent, this));
             }
         }
-        
+
         /// <summary>
         /// Invoked when an unhandled <see cref="E:System.Windows.Input.Keyboard.GotKeyboardFocus" /> attached event reaches an element in its route that is derived from this class. Implement this method to add class handling for this event.
         /// </summary>

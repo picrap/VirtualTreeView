@@ -149,7 +149,7 @@ namespace VirtualTreeView
         private FrameworkElement CreateContainer(object item)
         {
             _itemsControl.ApplyTemplate();
-            var hierarchicalDataTemplate = GetHirarchicalItemTemplate(item);
+            var hierarchicalDataTemplate = GetHierarchicalItemTemplate(item);
             var elementType = _dependencyProperty.OwnerType;
             if (_itemsControl.ItemContainerStyle?.TargetType != null && _itemsControl.ItemContainerStyle.TargetType.IsSubclassOf(elementType))
                 elementType = _itemsControl.ItemContainerStyle.TargetType;
@@ -167,7 +167,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="item">The item.</param>
         /// <returns></returns>
-        private HierarchicalDataTemplate GetHirarchicalItemTemplate(object item)
+        private HierarchicalDataTemplate GetHierarchicalItemTemplate(object item)
         {
             if (_itemsControl.ItemTemplate != null)
                 return _itemsControl.ItemTemplate as HierarchicalDataTemplate;

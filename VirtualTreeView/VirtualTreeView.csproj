@@ -69,6 +69,7 @@
     <Compile Include="MarginConverter.cs" />
     <Compile Include="Reflection\ObjectExtensions.cs" />
     <Compile Include="ItemHierarchicalSource.cs" />
+    <Compile Include="RowsVirtualizingPanel.cs" />
     <Compile Include="VirtualTreeViewItemHolder.cs" />
     <Compile Include="VirtualTreeViewItem.cs" />
     <Compile Include="ItemsSourceHierarchicalSource.cs" />
