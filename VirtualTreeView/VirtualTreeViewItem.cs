@@ -36,6 +36,24 @@ namespace VirtualTreeView
         }
 
         /// <summary>
+        /// The has items2 property
+        /// </summary>
+        public static readonly DependencyProperty HasItems2Property = DependencyProperty.Register(
+            "HasItems2", typeof(bool), typeof(VirtualTreeViewItem), new PropertyMetadata(true));
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this instance has items2.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if this instance has items2; otherwise, <c>false</c>.
+        /// </value>
+        public bool HasItems2
+        {
+            get { return (bool) GetValue(HasItems2Property); }
+            set { SetValue(HasItems2Property, value); }
+        }
+
+        /// <summary>
         /// The is selected property
         /// </summary>
         public static readonly DependencyProperty IsSelectedProperty
@@ -91,20 +109,10 @@ namespace VirtualTreeView
             set { SetValue(LevelMarginProperty, value); }
         }
 
-        private VirtualTreeView _parentTreeView;
-
         /// <summary>
         ///     Walks up the parent chain of TreeViewItems to the top TreeView.
         /// </summary>
-        internal VirtualTreeView ParentTreeView
-        {
-            get { return _parentTreeView; }
-            set
-            {
-                _parentTreeView = value;
-                Header = new Grid();
-            }
-        }
+        internal VirtualTreeView ParentTreeView { get; set; }
 
         /// <summary>
         ///     Returns the immediate parent VirtualTreeViewItem. Null if the parent is a TreeView.

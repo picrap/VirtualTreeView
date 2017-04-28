@@ -4,11 +4,13 @@
 namespace VirtualTreeView
 {
     using System;
-    using System.Collections.Specialized;
+    using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Controls.Primitives;
+    using System.Windows.Forms;
     using System.Windows.Media;
 
     /// <summary>
@@ -16,43 +18,55 @@ namespace VirtualTreeView
     /// Inspired from https://blogs.msdn.microsoft.com/dancre/2006/02/17/implementing-a-virtualizingpanel-part-4-the-goods/
     /// </summary>
     /// <seealso cref="System.Windows.Controls.VirtualizingPanel" />
-    class RowsVirtualizingPanel : VirtualizingPanel, IScrollInfo
+    public class RowsVirtualizingPanel : VirtualizingPanel, IScrollInfo
     {
+        private readonly TranslateTransform _translateTransform = new TranslateTransform();
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RowsVirtualizingPanel"/> class.
+        /// </summary>
         public RowsVirtualizingPanel()
         {
             // For use in the IScrollInfo implementation
-            this.RenderTransform = _trans;
+            //this.RenderTransform = _translateTransform;
         }
 
-        private double? _itemHeight;
+        private double _itemHeight;
 
         private double ItemHeight
         {
             get
             {
-                var itemHeight = _itemHeight ?? 0;
-                if (itemHeight == 0 || double.IsPositiveInfinity(itemHeight))
+                if (!ValidItemHeight)
+                    throw new InvalidOperationException();
+                return _itemHeight;
+            }
+        }
+
+        private bool _validItemHeight;
+
+        private bool ValidItemHeight
+        {
+            get
+            {
+                CheckItemHeight();
+                return _validItemHeight;
+            }
+        }
+
+        private void CheckItemHeight()
+        {
+            if (!_validItemHeight)
+            {
+                // ensure one child
+                RealizeChildren(0, 1);
+                if (_internalChildrenByIndex.Count > 0)
                 {
-                    var generator = GetItemContainerGenerator();
-                    // Get the generator position of the first visible data item
-                    var startPos = generator.GeneratorPositionFromIndex(0);
-                    bool newlyRealized;
-                    using (generator.StartAt(startPos, GeneratorDirection.Forward, true))
-                    {
-                        var child = generator.GenerateNext(out newlyRealized) as UIElement;
-                        if (child != null)
-                        {
-                            child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                            _itemHeight = child.DesiredSize.Height;
-                        }
-                        else
-                            _itemHeight = double.PositiveInfinity;
-                        //generator.Remove(new GeneratorPosition(i, 0), 1);
-                    }
-                    if (newlyRealized)
-                        generator.RemoveAll();
+                    var child = _internalChildrenByIndex.Values.First();
+                    child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                    _itemHeight = child.DesiredSize.Height;
+                    _validItemHeight = _itemHeight > 0;
                 }
-                return _itemHeight.Value;
             }
         }
 
@@ -68,7 +82,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="availableSize">Size available</param>
         /// <returns>Size desired</returns>
-        protected override Size MeasureOverride(Size availableSize)
+        protected Size MeasureOverride1(Size availableSize)
         {
             UpdateScrollInfo(availableSize);
 
@@ -128,11 +142,20 @@ namespace VirtualTreeView
             // Note: this could be deferred to idle time for efficiency
             CleanUpItems(firstVisibleItemIndex, lastVisibleItemIndex);
 
-            var itemsControl = ItemsControl.GetItemsOwner(this);
-            int itemCount = itemsControl.HasItems ? itemsControl.Items.Count : 0;
+            var itemCount = ItemCount;
 
             //return availableSize;
             return new Size(ActualWidth, ItemHeight * itemCount);
+        }
+
+        private int ItemCount
+        {
+            get
+            {
+                var itemsControl = ItemsControl.GetItemsOwner(this);
+                int itemCount = itemsControl.HasItems ? itemsControl.Items.Count : 0;
+                return itemCount;
+            }
         }
 
         /// <summary>
@@ -140,7 +163,7 @@ namespace VirtualTreeView
         /// </summary>
         /// <param name="finalSize">Size available</param>
         /// <returns>Size used</returns>
-        protected override Size ArrangeOverride(Size finalSize)
+        protected Size ArrangeOverride1(Size finalSize)
         {
             IItemContainerGenerator generator = GetItemContainerGenerator();
 
@@ -157,6 +180,108 @@ namespace VirtualTreeView
             }
 
             return finalSize;
+        }
+
+        /// <summary>
+        /// Measures the size in layout required for child elements and determines a size for the <see cref="T:System.Windows.FrameworkElement" />-derived class.
+        /// </summary>
+        /// <param name="availableSize">The available size that this element can give to child elements. Infinity can be specified as a value to indicate that the element will size to whatever content is available.</param>
+        /// <returns>
+        /// The size that this element determines it needs during layout, based on its calculations of child element sizes.
+        /// </returns>
+        protected override Size MeasureOverride(Size availableSize)
+        {
+            UpdateScrollInfo(availableSize);
+            double width;
+            var itemHeight = ValidItemHeight ? ItemHeight : 0;
+            var availableWidth = availableSize.Width;
+            if (InternalChildren.Count > 0)
+            {
+                width = 0;
+                foreach (UIElement child in InternalChildren)
+                {
+                    child.Measure(new Size(availableWidth, itemHeight));
+                    width = Math.Max(width, child.DesiredSize.Width);
+                }
+            }
+            else
+            {
+                width = availableWidth;
+                if (double.IsInfinity(width))
+                    width = ActualWidth;
+            }
+            return new Size(width, ItemCount * itemHeight);
+        }
+
+        /// <summary>
+        /// Positions child elements and determines a size for a <see cref="T:System.Windows.FrameworkElement" /> derived class.
+        /// </summary>
+        /// <param name="finalSize">The final area within the parent that this element should use to arrange itself and its children.</param>
+        /// <returns>
+        /// The actual size used.
+        /// </returns>
+        protected override Size ArrangeOverride(Size finalSize)
+        {
+            var visibleRange = GetVisibleRange();
+            RealizeChildren(visibleRange.Item1, visibleRange.Item2);
+            var remainingChildren = InternalChildren.Cast<UIElement>().ToList();
+            for (int index = 0; index < visibleRange.Item2; index++)
+            {
+                var child = _internalChildrenByIndex[visibleRange.Item1 + index];
+                if (InternalChildren.Contains(child))
+                    remainingChildren.Remove(child);
+                else
+                    AddInternalChild(child);
+                ArrangeChild(index, child, finalSize);
+            }
+            foreach (var remainingChild in remainingChildren)
+                RemoveInternalChildRange(InternalChildren.IndexOf(remainingChild), 1);
+            return finalSize;
+        }
+
+        private readonly IDictionary<int, UIElement> _internalChildrenByIndex = new Dictionary<int, UIElement>();
+
+        /// <summary>
+        /// Realizes the children, or ensures they are already realized.
+        /// </summary>
+        /// <param name="start">The start.</param>
+        /// <param name="count">The count.</param>
+        private void RealizeChildren(int start, int count)
+        {
+            var generator = GetItemContainerGenerator();
+            var startPos = generator.GeneratorPositionFromIndex(start);
+            using (generator.StartAt(startPos, GeneratorDirection.Forward, true))
+            {
+                for (int index = 0; index < count; index++)
+                {
+                    bool newlyRealized;
+                    // Get or create the child
+                    var child = (UIElement) generator.GenerateNext(out newlyRealized);
+                    if (child == null)
+                        continue;
+                    if (newlyRealized)
+                    {
+                        // Muy important: to be bound correctly, the child must be added first
+                        if (!InternalChildren.Contains(child))
+                            AddInternalChild(child);
+                        generator.PrepareItemContainer(child);
+                    }
+                    _internalChildrenByIndex[start + index] = child;
+                }
+            }
+        }
+
+        private Tuple<int, int> GetVisibleRange()
+        {
+            int itemCount = ItemCount;
+            if (!ValidItemHeight)
+                return Tuple.Create(0, itemCount);
+
+            var itemHeight = ItemHeight;
+            var first = Math.Max(0, (int) Math.Floor(_offset.Y / itemHeight));
+            var last = Math.Min(itemCount - 1, (int) Math.Ceiling((_offset.Y + _viewport.Height) / itemHeight));
+
+            return Tuple.Create(first, last - first + 1);
         }
 
         /// <summary>
@@ -188,14 +313,18 @@ namespace VirtualTreeView
         /// <param name="args"></param>
         protected override void OnItemsChanged(object sender, ItemsChangedEventArgs args)
         {
-            switch (args.Action)
-            {
-                case NotifyCollectionChangedAction.Remove:
-                case NotifyCollectionChangedAction.Replace:
-                case NotifyCollectionChangedAction.Move:
-                    RemoveInternalChildRange(args.Position.Index, args.ItemUICount);
-                    break;
-            }
+            // TODO: refine :)
+            // (however this should not be a problem here, since generated items are kept)
+            //RemoveInternalChildRange(0, InternalChildren.Count);
+            _internalChildrenByIndex.Clear();
+            //switch (args.Action)
+            //{
+            //    case NotifyCollectionChangedAction.Remove:
+            //    case NotifyCollectionChangedAction.Replace:
+            //    case NotifyCollectionChangedAction.Move:
+            //        RemoveInternalChildRange(args.Position.Index, args.ItemUICount);
+            //        break;
+            //}
         }
 
         #region Layout specific code
@@ -211,8 +340,8 @@ namespace VirtualTreeView
         /// <returns></returns>
         private Size CalculateExtent(Size availableSize, int itemCount)
         {
-            var width = double.PositiveInfinity;
-            if (itemCount == 0)
+            var width = availableSize.Width; // double.PositiveInfinity;
+            if (itemCount == 0 || !ValidItemHeight)
                 return new Size(width, 0);
             // See how big we are
             return new Size(width, ItemHeight * Math.Ceiling((double) itemCount));
@@ -225,20 +354,19 @@ namespace VirtualTreeView
         /// <param name="lastVisibleItemIndex">The item index of the last visible item</param>
         private void GetVisibleRange(out int firstVisibleItemIndex, out int lastVisibleItemIndex)
         {
-            var itemHeight = ItemHeight;
-
             var itemsControl = ItemsControl.GetItemsOwner(this);
             int itemCount = itemsControl.HasItems ? itemsControl.Items.Count : 0;
 
-            if (itemHeight == 0 || double.IsInfinity(itemHeight))
+            if (!ValidItemHeight)
             {
                 firstVisibleItemIndex = 0;
                 lastVisibleItemIndex = itemCount;
                 return;
             }
 
+            var itemHeight = ItemHeight;
             firstVisibleItemIndex = (int) Math.Floor(_offset.Y / itemHeight);
-        //    lastVisibleItemIndex = (int) Math.Ceiling((_offset.Y + _viewport.Height) / itemHeight) - 1;
+            //    lastVisibleItemIndex = (int) Math.Ceiling((_offset.Y + _viewport.Height) / itemHeight) - 1;
             lastVisibleItemIndex = (int) Math.Ceiling((_offset.Y + ActualHeight) / itemHeight) + 10;
 
             if (lastVisibleItemIndex >= itemCount)
@@ -253,8 +381,8 @@ namespace VirtualTreeView
         /// <param name="finalSize">The size of the panel</param>
         private void ArrangeChild(int itemIndex, UIElement child, Size finalSize)
         {
-            int row = itemIndex;
-            child.Arrange(new Rect(0, row * ItemHeight, finalSize.Width, ItemHeight));
+            var lineOffset = _offset.Y % ItemHeight;
+            child.Arrange(new Rect(-_offset.X, itemIndex * ItemHeight - lineOffset, finalSize.Width, ItemHeight));
         }
 
         #endregion
@@ -275,166 +403,203 @@ namespace VirtualTreeView
             if (extent != _extent)
             {
                 _extent = extent;
-                if (_owner != null)
-                    _owner.InvalidateScrollInfo();
+                ScrollOwner?.InvalidateScrollInfo();
             }
 
             // Update viewport
             if (availableSize != _viewport)
             {
                 _viewport = availableSize;
-                if (_owner != null)
-                    _owner.InvalidateScrollInfo();
+                ScrollOwner?.InvalidateScrollInfo();
             }
         }
 
-        public ScrollViewer ScrollOwner
-        {
-            get { return _owner; }
-            set { _owner = value; }
-        }
+        /// <summary>
+        /// Gets or sets a <see cref="T:System.Windows.Controls.ScrollViewer" /> element that controls scrolling behavior.
+        /// </summary>
+        public ScrollViewer ScrollOwner { get; set; }
 
-        public bool CanHorizontallyScroll
-        {
-            get { return _canHScroll; }
-            set { _canHScroll = value; }
-        }
+        /// <summary>
+        /// Gets or sets a value that indicates whether scrolling on the horizontal axis is possible.
+        /// </summary>
+        public bool CanHorizontallyScroll { get; set; }
 
-        public bool CanVerticallyScroll
-        {
-            get { return _canVScroll; }
-            set { _canVScroll = value; }
-        }
+        /// <summary>
+        /// Gets or sets a value that indicates whether scrolling on the vertical axis is possible.
+        /// </summary>
+        public bool CanVerticallyScroll { get; set; }
 
-        public double HorizontalOffset
-        {
-            get { return _offset.X; }
-        }
+        /// <summary>
+        /// Gets the horizontal offset of the scrolled content.
+        /// </summary>
+        public double HorizontalOffset => _offset.X;
 
-        public double VerticalOffset
-        {
-            get { return _offset.Y; }
-        }
+        /// <summary>
+        /// Gets the vertical offset of the scrolled content.
+        /// </summary>
+        public double VerticalOffset => _offset.Y;
 
-        public double ExtentHeight
-        {
-            get { return _extent.Height; }
-        }
+        /// <summary>
+        /// Gets the vertical size of the extent.
+        /// </summary>
+        public double ExtentHeight => _extent.Height;
 
-        public double ExtentWidth
-        {
-            get { return _extent.Width; }
-        }
+        /// <summary>
+        /// Gets the horizontal size of the extent.
+        /// </summary>
+        public double ExtentWidth => _extent.Width;
 
-        public double ViewportHeight
-        {
-            get { return _viewport.Height; }
-        }
+        /// <summary>
+        /// Gets the vertical size of the viewport for this content.
+        /// </summary>
+        public double ViewportHeight => _viewport.Height;
 
-        public double ViewportWidth
-        {
-            get { return _viewport.Width; }
-        }
+        /// <summary>
+        /// Gets the horizontal size of the viewport for this content.
+        /// </summary>
+        public double ViewportWidth => _viewport.Width;
 
+        /// <summary>
+        /// Scrolls up within content by one logical unit.
+        /// </summary>
         public void LineUp()
         {
-            SetVerticalOffset(this.VerticalOffset - 10);
+            SetVerticalOffset(VerticalOffset - ItemHeight);
         }
 
+        /// <summary>
+        /// Scrolls down within content by one logical unit.
+        /// </summary>
         public void LineDown()
         {
-            SetVerticalOffset(this.VerticalOffset + 10);
+            SetVerticalOffset(VerticalOffset + ItemHeight);
         }
 
+        /// <summary>
+        /// Scrolls up within content by one page.
+        /// </summary>
         public void PageUp()
         {
-            SetVerticalOffset(this.VerticalOffset - _viewport.Height);
+            SetVerticalOffset(VerticalOffset - _viewport.Height);
         }
 
+        /// <summary>
+        /// Scrolls down within content by one page.
+        /// </summary>
         public void PageDown()
         {
-            SetVerticalOffset(this.VerticalOffset + _viewport.Height);
+            SetVerticalOffset(VerticalOffset + _viewport.Height);
         }
 
+        /// <summary>
+        /// Scrolls up within content after a user clicks the wheel button on a mouse.
+        /// </summary>
         public void MouseWheelUp()
         {
-            SetVerticalOffset(this.VerticalOffset - 10);
+            SetVerticalOffset(VerticalOffset - ItemHeight * SystemInformation.MouseWheelScrollLines);
         }
 
+        /// <summary>
+        /// Scrolls down within content after a user clicks the wheel button on a mouse.
+        /// </summary>
         public void MouseWheelDown()
         {
-            SetVerticalOffset(this.VerticalOffset + 10);
+            SetVerticalOffset(VerticalOffset + ItemHeight * SystemInformation.MouseWheelScrollLines);
         }
 
+        /// <summary>
+        /// Scrolls left within content by one logical unit.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException"></exception>
         public void LineLeft()
         {
-            throw new InvalidOperationException();
+            SetHorizontalOffset(HorizontalOffset - 10);
         }
 
+        /// <summary>
+        /// Scrolls right within content by one logical unit.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException"></exception>
         public void LineRight()
         {
-            throw new InvalidOperationException();
+            SetHorizontalOffset(HorizontalOffset + 10);
         }
 
+        /// <summary>
+        /// Forces content to scroll until the coordinate space of a <see cref="T:System.Windows.Media.Visual" /> object is visible.
+        /// </summary>
+        /// <param name="visual">A <see cref="T:System.Windows.Media.Visual" /> that becomes visible.</param>
+        /// <param name="rectangle">A bounding rectangle that identifies the coordinate space to make visible.</param>
+        /// <returns>
+        /// A <see cref="T:System.Windows.Rect" /> that is visible.
+        /// </returns>
         public Rect MakeVisible(Visual visual, Rect rectangle)
         {
             return new Rect();
         }
 
+        /// <summary>
+        /// Scrolls left within content after a user clicks the wheel button on a mouse.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException"></exception>
         public void MouseWheelLeft()
         {
-            throw new InvalidOperationException();
+            SetHorizontalOffset(HorizontalOffset - 10 * SystemParameters.WheelScrollLines);
         }
 
+        /// <summary>
+        /// Scrolls right within content after a user clicks the wheel button on a mouse.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException"></exception>
         public void MouseWheelRight()
         {
-            throw new InvalidOperationException();
+            SetHorizontalOffset(HorizontalOffset + 10 * SystemParameters.WheelScrollLines);
         }
 
+        /// <summary>
+        /// Scrolls left within content by one page.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException"></exception>
         public void PageLeft()
         {
-            throw new InvalidOperationException();
+            SetHorizontalOffset(HorizontalOffset - _viewport.Width);
         }
 
+        /// <summary>
+        /// Scrolls right within content by one page.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException"></exception>
         public void PageRight()
         {
-            throw new InvalidOperationException();
+            SetHorizontalOffset(HorizontalOffset + _viewport.Width);
         }
 
+        /// <summary>
+        /// Sets the amount of horizontal offset.
+        /// </summary>
+        /// <param name="offset">The degree to which content is horizontally offset from the containing viewport.</param>
+        /// <exception cref="System.InvalidOperationException"></exception>
         public void SetHorizontalOffset(double offset)
         {
-            throw new InvalidOperationException();
+            _offset.X = Math.Max(Math.Min(_extent.Width - _viewport.Width, offset), 0);
         }
 
+        /// <summary>
+        /// Sets the amount of vertical offset.
+        /// </summary>
+        /// <param name="offset">The degree to which content is vertically offset from the containing viewport.</param>
         public void SetVerticalOffset(double offset)
         {
-            if (offset < 0 || _viewport.Height >= _extent.Height)
-            {
-                offset = 0;
-            }
-            else
-            {
-                if (offset + _viewport.Height >= _extent.Height)
-                {
-                    offset = _extent.Height - _viewport.Height;
-                }
-            }
+            _offset.Y = Math.Max(Math.Min(_extent.Height - _viewport.Height, offset), 0);
 
-            _offset.Y = offset;
+            ScrollOwner?.InvalidateScrollInfo();
 
-            if (_owner != null)
-                _owner.InvalidateScrollInfo();
-
-            _trans.Y = -offset;
+            _translateTransform.Y = -offset;
 
             // Force us to realize the correct children
             InvalidateMeasure();
         }
 
-        private TranslateTransform _trans = new TranslateTransform();
-        private ScrollViewer _owner;
-        private bool _canHScroll = false;
-        private bool _canVScroll = false;
         private Size _extent = new Size(0, 0);
         private Size _viewport = new Size(0, 0);
         private Point _offset;

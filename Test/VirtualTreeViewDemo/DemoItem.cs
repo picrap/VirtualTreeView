@@ -7,10 +7,12 @@ namespace VirtualTreeViewDemo
     using System.Collections.ObjectModel;
     using System.Diagnostics;
 
-    [DebuggerDisplay("{Label}")]
+    [DebuggerDisplay("{" + nameof(Label) + "}")]
     public class DemoItem
     {
-        public ObservableCollection<object> Children { get; } = new ObservableCollection<object>();
+        private readonly ObservableCollection<object> _children = new ObservableCollection<object>();
+
+        public ObservableCollection<object> Children => _children;
 
         public bool IsExpanded { get; set; }
 
@@ -34,6 +36,7 @@ namespace VirtualTreeViewDemo
         }
 
         private static ObservableCollection<object> _root2;
+
         public static ObservableCollection<object> Root2
         {
             get
@@ -72,7 +75,7 @@ namespace VirtualTreeViewDemo
                     if (depth < maxDepth)
                     {
                         foreach (var childItem in CreateItems(random, item, depth + 1, maxDepth))
-                            item.Children.Add(childItem);
+                            item._children.Add(childItem);
                     }
                 }
             }

@@ -117,14 +117,6 @@ namespace VirtualTreeView
             RaiseEvent(e);
         }
 
-        /// <summary>
-        /// Gets or sets the lazy resources.
-        /// </summary>
-        /// <value>
-        /// The lazy resources.
-        /// </value>
-        public ResourceDictionary LazyResources { get; set; } = new ResourceDictionary();
-
         static VirtualTreeView()
         {
             DefaultStyleKeyProperty.OverrideMetadata(typeof(VirtualTreeView), new FrameworkPropertyMetadata(typeof(VirtualTreeView)));
