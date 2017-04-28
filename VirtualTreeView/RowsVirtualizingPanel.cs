@@ -70,82 +70,30 @@ namespace VirtualTreeView
             }
         }
 
-        private IItemContainerGenerator GetItemContainerGenerator()
+        private bool _externalScrollOwnerSearched;
+        private ScrollViewer _externalScrollOwner;
+
+        private ScrollViewer ExternalScrollOwner
         {
-            var children = this.InternalChildren;
-            var generator = ItemContainerGenerator;
-            return generator;
-        }
-
-        /// <summary>
-        /// Measure the children
-        /// </summary>
-        /// <param name="availableSize">Size available</param>
-        /// <returns>Size desired</returns>
-        protected Size MeasureOverride1(Size availableSize)
-        {
-            UpdateScrollInfo(availableSize);
-
-            if (double.IsInfinity(ItemHeight))
-                return new Size(ActualWidth, ActualHeight);
-
-            // Figure out range that's visible based on layout algorithm
-            int firstVisibleItemIndex, lastVisibleItemIndex;
-            GetVisibleRange(out firstVisibleItemIndex, out lastVisibleItemIndex);
-
-            // We need to access InternalChildren before the generator to work around a bug
-            var children = this.InternalChildren;
-            var generator = GetItemContainerGenerator();
-
-            // Get the generator position of the first visible data item
-            var startPos = generator.GeneratorPositionFromIndex(firstVisibleItemIndex);
-
-            // Get index where we'd insert the child for this position. If the item is realized
-            // (position.Offset == 0), it's just position.Index, otherwise we have to add one to
-            // insert after the corresponding child
-            int childIndex = startPos.Offset == 0 ? startPos.Index : startPos.Index + 1;
-
-            var itemHeight = ItemHeight;
-            using (generator.StartAt(startPos, GeneratorDirection.Forward, true))
+            get
             {
-                for (int itemIndex = firstVisibleItemIndex; itemIndex <= lastVisibleItemIndex; ++itemIndex, ++childIndex)
+                if (!_externalScrollOwnerSearched)
                 {
-                    bool newlyRealized;
-
-                    // Get or create the child
-                    var child = generator.GenerateNext(out newlyRealized) as UIElement;
-                    if (newlyRealized)
+                    _externalScrollOwnerSearched = true;
+                    for (DependencyObject d = this; d != null; d = VisualTreeHelper.GetParent(d))
                     {
-                        // Figure out if we need to insert the child at the end or somewhere in the middle
-                        if (childIndex >= children.Count)
+                        var s = d as ScrollViewer;
+                        if (s != null)
                         {
-                            base.AddInternalChild(child);
+                            _externalScrollOwner = s;
+                            s.ScrollChanged += OnExternalScrollOwnerScrollChanged;
+                            s.SizeChanged += OnExternalScrollOwnerSizeChanged;
+                            break;
                         }
-                        else
-                        {
-                            base.InsertInternalChild(childIndex, child);
-                        }
-                        generator.PrepareItemContainer(child);
                     }
-                    else if (child != null)
-                    {
-                        // The child has already been created, let's be sure it's in the right spot
-                        Debug.Assert(child == children[childIndex], "Wrong child was generated");
-                    }
-
-                    // Measurements will depend on layout algorithm
-                    if (child != null)
-                        child.Measure(new Size(double.PositiveInfinity, itemHeight));
                 }
+                return _externalScrollOwner;
             }
-
-            // Note: this could be deferred to idle time for efficiency
-            CleanUpItems(firstVisibleItemIndex, lastVisibleItemIndex);
-
-            var itemCount = ItemCount;
-
-            //return availableSize;
-            return new Size(ActualWidth, ItemHeight * itemCount);
         }
 
         private int ItemCount
@@ -158,28 +106,12 @@ namespace VirtualTreeView
             }
         }
 
-        /// <summary>
-        /// Arrange the children
-        /// </summary>
-        /// <param name="finalSize">Size available</param>
-        /// <returns>Size used</returns>
-        protected Size ArrangeOverride1(Size finalSize)
+        private IItemContainerGenerator GetItemContainerGenerator()
         {
-            IItemContainerGenerator generator = GetItemContainerGenerator();
-
-            UpdateScrollInfo(finalSize);
-
-            for (int i = 0; i < this.Children.Count; i++)
-            {
-                UIElement child = this.Children[i];
-
-                // Map the child offset to an item offset
-                int itemIndex = generator.IndexFromGeneratorPosition(new GeneratorPosition(i, 0));
-
-                ArrangeChild(itemIndex, child, finalSize);
-            }
-
-            return finalSize;
+            // this ensures that ItemContainerGenerator will be valid
+            var children = this.InternalChildren;
+            var generator = ItemContainerGenerator;
+            return generator;
         }
 
         /// <summary>
@@ -191,7 +123,7 @@ namespace VirtualTreeView
         /// </returns>
         protected override Size MeasureOverride(Size availableSize)
         {
-            UpdateScrollInfo(availableSize);
+            //UpdateScrollInfo(availableSize);
             double width;
             var itemHeight = ValidItemHeight ? ItemHeight : 0;
             var availableWidth = availableSize.Width;
@@ -210,7 +142,34 @@ namespace VirtualTreeView
                 if (double.IsInfinity(width))
                     width = ActualWidth;
             }
-            return new Size(width, ItemCount * itemHeight);
+
+            var measureOverride = new Size(width, ItemCount * itemHeight);
+            if (measureOverride != _extent)
+            {
+                _extent = measureOverride;
+                ScrollOwner?.InvalidateScrollInfo();
+            }
+
+            if (ScrollOwner != null)
+            {
+                var viewport = new Size(ScrollOwner.ActualWidth, ScrollOwner.ActualHeight);
+                if (viewport != _viewport)
+                {
+                    _viewport = viewport;
+                    ScrollOwner.InvalidateScrollInfo();
+                }
+            }
+            else if (ExternalScrollOwner != null)
+            {
+                var viewport = new Size(ExternalScrollOwner.ActualWidth, ExternalScrollOwner.ActualHeight);
+                if (viewport != _viewport)
+                {
+                    _viewport = viewport;
+                    ExternalScrollOwner.InvalidateScrollInfo();
+                }
+            }
+
+            return measureOverride;
         }
 
         /// <summary>
@@ -228,14 +187,19 @@ namespace VirtualTreeView
             for (int index = 0; index < visibleRange.Item2; index++)
             {
                 var child = _internalChildrenByIndex[visibleRange.Item1 + index];
-                if (InternalChildren.Contains(child))
-                    remainingChildren.Remove(child);
-                else
-                    AddInternalChild(child);
+                child.Visibility = Visibility.Visible;
+                remainingChildren.Remove(child);
                 ArrangeChild(index, child, finalSize);
             }
             foreach (var remainingChild in remainingChildren)
-                RemoveInternalChildRange(InternalChildren.IndexOf(remainingChild), 1);
+                remainingChild.Visibility = Visibility.Collapsed;
+
+            //if (finalSize != _viewport)
+            //{
+            //    _viewport = finalSize;
+            //    ScrollOwner?.InvalidateScrollInfo();
+            //}
+
             return finalSize;
         }
 
@@ -256,7 +220,7 @@ namespace VirtualTreeView
                 {
                     bool newlyRealized;
                     // Get or create the child
-                    var child = (UIElement) generator.GenerateNext(out newlyRealized);
+                    var child = (UIElement)generator.GenerateNext(out newlyRealized);
                     if (child == null)
                         continue;
                     if (newlyRealized)
@@ -278,32 +242,10 @@ namespace VirtualTreeView
                 return Tuple.Create(0, itemCount);
 
             var itemHeight = ItemHeight;
-            var first = Math.Max(0, (int) Math.Floor(_offset.Y / itemHeight));
-            var last = Math.Min(itemCount - 1, (int) Math.Ceiling((_offset.Y + _viewport.Height) / itemHeight));
+            var first = Math.Max(0, (int)Math.Floor(_offset.Y / itemHeight));
+            var last = Math.Min(itemCount - 1, (int)Math.Ceiling((_offset.Y + _viewport.Height) / itemHeight));
 
             return Tuple.Create(first, last - first + 1);
-        }
-
-        /// <summary>
-        /// Revirtualize items that are no longer visible
-        /// </summary>
-        /// <param name="minDesiredGenerated">first item index that should be visible</param>
-        /// <param name="maxDesiredGenerated">last item index that should be visible</param>
-        private void CleanUpItems(int minDesiredGenerated, int maxDesiredGenerated)
-        {
-            UIElementCollection children = this.InternalChildren;
-            IItemContainerGenerator generator = GetItemContainerGenerator();
-
-            for (int i = children.Count - 1; i >= 0; i--)
-            {
-                GeneratorPosition childGeneratorPos = new GeneratorPosition(i, 0);
-                int itemIndex = generator.IndexFromGeneratorPosition(childGeneratorPos);
-                if (itemIndex < minDesiredGenerated || itemIndex > maxDesiredGenerated)
-                {
-                    generator.Remove(childGeneratorPos, 1);
-                    RemoveInternalChildRange(i, 1);
-                }
-            }
         }
 
         /// <summary>
@@ -327,52 +269,6 @@ namespace VirtualTreeView
             //}
         }
 
-        #region Layout specific code
-
-        // I've isolated the layout specific code to this region. If you want to do something other than tiling, this is
-        // where you'll make your changes
-
-        /// <summary>
-        /// Calculate the extent of the view based on the available size
-        /// </summary>
-        /// <param name="availableSize">available size</param>
-        /// <param name="itemCount">number of data items</param>
-        /// <returns></returns>
-        private Size CalculateExtent(Size availableSize, int itemCount)
-        {
-            var width = availableSize.Width; // double.PositiveInfinity;
-            if (itemCount == 0 || !ValidItemHeight)
-                return new Size(width, 0);
-            // See how big we are
-            return new Size(width, ItemHeight * Math.Ceiling((double) itemCount));
-        }
-
-        /// <summary>
-        /// Get the range of children that are visible
-        /// </summary>
-        /// <param name="firstVisibleItemIndex">The item index of the first visible item</param>
-        /// <param name="lastVisibleItemIndex">The item index of the last visible item</param>
-        private void GetVisibleRange(out int firstVisibleItemIndex, out int lastVisibleItemIndex)
-        {
-            var itemsControl = ItemsControl.GetItemsOwner(this);
-            int itemCount = itemsControl.HasItems ? itemsControl.Items.Count : 0;
-
-            if (!ValidItemHeight)
-            {
-                firstVisibleItemIndex = 0;
-                lastVisibleItemIndex = itemCount;
-                return;
-            }
-
-            var itemHeight = ItemHeight;
-            firstVisibleItemIndex = (int) Math.Floor(_offset.Y / itemHeight);
-            //    lastVisibleItemIndex = (int) Math.Ceiling((_offset.Y + _viewport.Height) / itemHeight) - 1;
-            lastVisibleItemIndex = (int) Math.Ceiling((_offset.Y + ActualHeight) / itemHeight) + 10;
-
-            if (lastVisibleItemIndex >= itemCount)
-                lastVisibleItemIndex = itemCount - 1;
-        }
-
         /// <summary>
         /// Position a child
         /// </summary>
@@ -381,38 +277,30 @@ namespace VirtualTreeView
         /// <param name="finalSize">The size of the panel</param>
         private void ArrangeChild(int itemIndex, UIElement child, Size finalSize)
         {
-            var lineOffset = _offset.Y % ItemHeight;
+            // external scroll owner compensates the sub item-height scroll, so we have to uncompensate it
+            var lineOffset = ExternalScrollOwner != null ? -Math.Floor(_offset.Y / ItemHeight) * ItemHeight : _offset.Y % ItemHeight;
             child.Arrange(new Rect(-_offset.X, itemIndex * ItemHeight - lineOffset, finalSize.Width, ItemHeight));
         }
 
-        #endregion
+        private void OnExternalScrollOwnerSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            InvalidateMeasure();
+        }
+
+        private void OnExternalScrollOwnerScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (_offset.X != e.HorizontalOffset || _offset.Y != e.VerticalOffset)
+            {
+                _offset.X = e.HorizontalOffset;
+                _offset.Y = e.VerticalOffset;
+                InvalidateMeasure();
+            }
+        }
+
 
         #region IScrollInfo implementation
 
         // See Ben Constable's series of posts at http://blogs.msdn.com/bencon/
-
-
-        private void UpdateScrollInfo(Size availableSize)
-        {
-            // See how many items there are
-            ItemsControl itemsControl = ItemsControl.GetItemsOwner(this);
-            int itemCount = itemsControl.HasItems ? itemsControl.Items.Count : 0;
-
-            Size extent = CalculateExtent(availableSize, itemCount);
-            // Update extent
-            if (extent != _extent)
-            {
-                _extent = extent;
-                ScrollOwner?.InvalidateScrollInfo();
-            }
-
-            // Update viewport
-            if (availableSize != _viewport)
-            {
-                _viewport = availableSize;
-                ScrollOwner?.InvalidateScrollInfo();
-            }
-        }
 
         /// <summary>
         /// Gets or sets a <see cref="T:System.Windows.Controls.ScrollViewer" /> element that controls scrolling behavior.
