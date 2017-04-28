@@ -5,13 +5,14 @@ namespace VirtualTreeView
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Controls.Primitives;
     using System.Windows.Forms;
+    using System.Windows.Interop;
     using System.Windows.Media;
+    using Application = System.Windows.Application;
 
     /// <summary>
     /// Optimized <see cref="VirtualizingPanel"/> for rows
@@ -20,17 +21,6 @@ namespace VirtualTreeView
     /// <seealso cref="System.Windows.Controls.VirtualizingPanel" />
     public class RowsVirtualizingPanel : VirtualizingPanel, IScrollInfo
     {
-        private readonly TranslateTransform _translateTransform = new TranslateTransform();
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="RowsVirtualizingPanel"/> class.
-        /// </summary>
-        public RowsVirtualizingPanel()
-        {
-            // For use in the IScrollInfo implementation
-            //this.RenderTransform = _translateTransform;
-        }
-
         private double _itemHeight;
 
         private double ItemHeight
@@ -106,6 +96,35 @@ namespace VirtualTreeView
             }
         }
 
+        private DateTime? _lastActivity;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RowsVirtualizingPanel"/> class.
+        /// </summary>
+        public RowsVirtualizingPanel()
+        {
+            ComponentDispatcher.ThreadIdle += OnThreadIdle;
+            Unloaded += delegate { ComponentDispatcher.ThreadIdle -= OnThreadIdle; };
+        }
+
+        private void OnThreadIdle(object sender, EventArgs e)
+        {
+          //  if (_lastActivity.HasValue && (DateTime.UtcNow - _lastActivity.Value).TotalSeconds > 2)
+          //  {
+          //      _lastActivity = null;
+
+          //      var toBeRemovedElements = InternalChildren.Cast<UIElement>().Where(el => el.Visibility == Visibility.Collapsed).ToArray();
+          //      var generator = GetItemContainerGenerator();
+          //      foreach (var toBeRemovedElement in toBeRemovedElements)
+          //      {
+          //          RemoveInternalChildRange(InternalChildren.IndexOf(toBeRemovedElement), 1);
+          ////          generator.Remove(generator.GeneratorPositionFromIndex());
+          //      }
+
+          //      _internalChildrenByIndex.Clear();
+          //  }
+        }
+
         private IItemContainerGenerator GetItemContainerGenerator()
         {
             // this ensures that ItemContainerGenerator will be valid
@@ -123,7 +142,6 @@ namespace VirtualTreeView
         /// </returns>
         protected override Size MeasureOverride(Size availableSize)
         {
-            //UpdateScrollInfo(availableSize);
             double width;
             var itemHeight = ValidItemHeight ? ItemHeight : 0;
             var availableWidth = availableSize.Width;
@@ -194,11 +212,7 @@ namespace VirtualTreeView
             foreach (var remainingChild in remainingChildren)
                 remainingChild.Visibility = Visibility.Collapsed;
 
-            //if (finalSize != _viewport)
-            //{
-            //    _viewport = finalSize;
-            //    ScrollOwner?.InvalidateScrollInfo();
-            //}
+            _lastActivity = DateTime.UtcNow;
 
             return finalSize;
         }
@@ -220,7 +234,7 @@ namespace VirtualTreeView
                 {
                     bool newlyRealized;
                     // Get or create the child
-                    var child = (UIElement)generator.GenerateNext(out newlyRealized);
+                    var child = (UIElement) generator.GenerateNext(out newlyRealized);
                     if (child == null)
                         continue;
                     if (newlyRealized)
@@ -242,8 +256,8 @@ namespace VirtualTreeView
                 return Tuple.Create(0, itemCount);
 
             var itemHeight = ItemHeight;
-            var first = Math.Max(0, (int)Math.Floor(_offset.Y / itemHeight));
-            var last = Math.Min(itemCount - 1, (int)Math.Ceiling((_offset.Y + _viewport.Height) / itemHeight));
+            var first = Math.Max(0, (int) Math.Floor(_offset.Y / itemHeight));
+            var last = Math.Min(itemCount - 1, (int) Math.Ceiling((_offset.Y + _viewport.Height) / itemHeight));
 
             return Tuple.Create(first, last - first + 1);
         }
@@ -296,7 +310,6 @@ namespace VirtualTreeView
                 InvalidateMeasure();
             }
         }
-
 
         #region IScrollInfo implementation
 
@@ -481,8 +494,6 @@ namespace VirtualTreeView
             _offset.Y = Math.Max(Math.Min(_extent.Height - _viewport.Height, offset), 0);
 
             ScrollOwner?.InvalidateScrollInfo();
-
-            _translateTransform.Y = -offset;
 
             // Force us to realize the correct children
             InvalidateMeasure();
