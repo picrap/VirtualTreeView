@@ -5,6 +5,7 @@ namespace VirtualTreeView
 {
     using System;
     using System.Collections.Generic;
+    using System.Collections.Specialized;
     using System.Linq;
     using System.Windows;
     using System.Windows.Controls;
@@ -12,7 +13,6 @@ namespace VirtualTreeView
     using System.Windows.Forms;
     using System.Windows.Interop;
     using System.Windows.Media;
-    using Application = System.Windows.Application;
 
     /// <summary>
     /// Optimized <see cref="VirtualizingPanel"/> for rows
@@ -50,9 +50,9 @@ namespace VirtualTreeView
             {
                 // ensure one child
                 RealizeChildren(0, 1);
-                if (_internalChildrenByIndex.Count > 0)
+                if (InternalChildren.Count > 0)
                 {
-                    var child = _internalChildrenByIndex.Values.First();
+                    var child = InternalChildren[0];
                     child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
                     _itemHeight = child.DesiredSize.Height;
                     _validItemHeight = _itemHeight > 0;
@@ -109,26 +109,55 @@ namespace VirtualTreeView
 
         private void OnThreadIdle(object sender, EventArgs e)
         {
-          //  if (_lastActivity.HasValue && (DateTime.UtcNow - _lastActivity.Value).TotalSeconds > 2)
-          //  {
-          //      _lastActivity = null;
+            var now = DateTime.UtcNow;
+            if (_lastActivity.HasValue && (now - _lastActivity.Value).TotalSeconds > 2)
+            {
+                _lastActivity = null;
+                //foreach (var toBeRemoved in GetToBeRemoved().Reverse().ToArray())
+                //    VirtualizeChildren(toBeRemoved.Item1, toBeRemoved.Item2.Count);
+                if (GetToBeRemoved().Any())
+                {
+                    RemoveInternalChildRange(0, InternalChildren.Count);
+                    GetItemContainerGenerator().RemoveAll();
+                    ArrangeOverride(_lastArrangeSize);
+                }
+            }
+        }
 
-          //      var toBeRemovedElements = InternalChildren.Cast<UIElement>().Where(el => el.Visibility == Visibility.Collapsed).ToArray();
-          //      var generator = GetItemContainerGenerator();
-          //      foreach (var toBeRemovedElement in toBeRemovedElements)
-          //      {
-          //          RemoveInternalChildRange(InternalChildren.IndexOf(toBeRemovedElement), 1);
-          ////          generator.Remove(generator.GeneratorPositionFromIndex());
-          //      }
+        private IEnumerable<Tuple<int, ICollection<UIElement>>> GetToBeRemoved()
+        {
+            int lastIndex = -1;
+            IList<UIElement> toBeRemoved = null;
+            for (int childIndex = 0; childIndex < InternalChildren.Count; childIndex++)
+            {
+                var child = InternalChildren[childIndex];
+                if (child.Visibility == Visibility.Visible)
+                {
+                    if (toBeRemoved != null)
+                    {
+                        yield return new Tuple<int, ICollection<UIElement>>(lastIndex, toBeRemoved);
+                        toBeRemoved = null;
+                    }
+                }
+                else
+                {
+                    if (toBeRemoved == null)
+                    {
+                        toBeRemoved = new List<UIElement>();
+                        lastIndex = childIndex;
+                    }
+                    toBeRemoved.Add(child);
+                }
+            }
 
-          //      _internalChildrenByIndex.Clear();
-          //  }
+            if (toBeRemoved != null)
+                yield return new Tuple<int, ICollection<UIElement>>(lastIndex, toBeRemoved);
         }
 
         private IItemContainerGenerator GetItemContainerGenerator()
         {
             // this ensures that ItemContainerGenerator will be valid
-            var children = this.InternalChildren;
+            var children = InternalChildren;
             var generator = ItemContainerGenerator;
             return generator;
         }
@@ -190,6 +219,8 @@ namespace VirtualTreeView
             return measureOverride;
         }
 
+        private Size _lastArrangeSize;
+
         /// <summary>
         /// Positions child elements and determines a size for a <see cref="T:System.Windows.FrameworkElement" /> derived class.
         /// </summary>
@@ -199,12 +230,13 @@ namespace VirtualTreeView
         /// </returns>
         protected override Size ArrangeOverride(Size finalSize)
         {
+            _lastArrangeSize = finalSize;
             var visibleRange = GetVisibleRange();
-            RealizeChildren(visibleRange.Item1, visibleRange.Item2);
+            var startIndex = RealizeChildren(visibleRange.Item1, visibleRange.Item2);
             var remainingChildren = InternalChildren.Cast<UIElement>().ToList();
             for (int index = 0; index < visibleRange.Item2; index++)
             {
-                var child = _internalChildrenByIndex[visibleRange.Item1 + index];
+                var child = InternalChildren[startIndex + index];
                 child.Visibility = Visibility.Visible;
                 remainingChildren.Remove(child);
                 ArrangeChild(index, child, finalSize);
@@ -217,36 +249,57 @@ namespace VirtualTreeView
             return finalSize;
         }
 
-        private readonly IDictionary<int, UIElement> _internalChildrenByIndex = new Dictionary<int, UIElement>();
-
         /// <summary>
         /// Realizes the children, or ensures they are already realized.
         /// </summary>
         /// <param name="start">The start.</param>
         /// <param name="count">The count.</param>
-        private void RealizeChildren(int start, int count)
+        private int RealizeChildren(int start, int count)
         {
             var generator = GetItemContainerGenerator();
             var startPos = generator.GeneratorPositionFromIndex(start);
+            var childIndex = startPos.Offset == 0 ? startPos.Index : startPos.Index + 1;
+            var result = childIndex;
             using (generator.StartAt(startPos, GeneratorDirection.Forward, true))
             {
-                for (int index = 0; index < count; index++)
+                for (int index = 0; index < count; index++, childIndex++)
                 {
                     bool newlyRealized;
                     // Get or create the child
-                    var child = (UIElement) generator.GenerateNext(out newlyRealized);
+                    var child = (UIElement)generator.GenerateNext(out newlyRealized);
                     if (child == null)
                         continue;
+                    //var absoluteIndex = start + index;
                     if (newlyRealized)
                     {
                         // Muy important: to be bound correctly, the child must be added first
                         if (!InternalChildren.Contains(child))
-                            AddInternalChild(child);
+                        {
+                            if (childIndex >= InternalChildren.Count)
+                                AddInternalChild(child);
+                            else
+                                InsertInternalChild(childIndex, child);
+                        }
+                        else
+                        {
+                            if (!ReferenceEquals(InternalChildren[childIndex], child))
+                                throw new Exception("WTF");
+                        }
                         generator.PrepareItemContainer(child);
                     }
-                    _internalChildrenByIndex[start + index] = child;
                 }
             }
+            return result;
+        }
+
+        private void VirtualizeChildren(int start, int count)
+        {
+            var generator = GetItemContainerGenerator();
+            var startPos = generator.GeneratorPositionFromIndex(start);
+            startPos = new GeneratorPosition(startPos.Index + startPos.Offset, 0);
+            //var startPos = new GeneratorPosition(start, 0);
+            generator.Remove(startPos, count);
+            RemoveInternalChildRange(start, count);
         }
 
         private Tuple<int, int> GetVisibleRange()
@@ -256,8 +309,8 @@ namespace VirtualTreeView
                 return Tuple.Create(0, itemCount);
 
             var itemHeight = ItemHeight;
-            var first = Math.Max(0, (int) Math.Floor(_offset.Y / itemHeight));
-            var last = Math.Min(itemCount - 1, (int) Math.Ceiling((_offset.Y + _viewport.Height) / itemHeight));
+            var first = Math.Max(0, (int)Math.Floor(_offset.Y / itemHeight));
+            var last = Math.Min(itemCount - 1, (int)Math.Ceiling((_offset.Y + _viewport.Height) / itemHeight));
 
             return Tuple.Create(first, last - first + 1);
         }
@@ -269,18 +322,24 @@ namespace VirtualTreeView
         /// <param name="args"></param>
         protected override void OnItemsChanged(object sender, ItemsChangedEventArgs args)
         {
-            // TODO: refine :)
-            // (however this should not be a problem here, since generated items are kept)
-            //RemoveInternalChildRange(0, InternalChildren.Count);
-            _internalChildrenByIndex.Clear();
-            //switch (args.Action)
-            //{
-            //    case NotifyCollectionChangedAction.Remove:
-            //    case NotifyCollectionChangedAction.Replace:
-            //    case NotifyCollectionChangedAction.Move:
-            //        RemoveInternalChildRange(args.Position.Index, args.ItemUICount);
-            //        break;
-            //}
+            switch (args.Action)
+            {
+                case NotifyCollectionChangedAction.Add:
+                    break;
+                case NotifyCollectionChangedAction.Remove:
+                    RemoveInternalChildRange(args.Position.Index, args.ItemUICount);
+                    break;
+                case NotifyCollectionChangedAction.Replace:
+                    RemoveInternalChildRange(args.Position.Index, args.ItemUICount);
+                    break;
+                case NotifyCollectionChangedAction.Move:
+                    RemoveInternalChildRange(args.Position.Index, args.ItemUICount);
+                    break;
+                case NotifyCollectionChangedAction.Reset:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
 
         /// <summary>
