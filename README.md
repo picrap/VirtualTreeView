@@ -1,12 +1,6 @@
-<table>
-<tr>
-<td rowspan=2>
-<img src="https://raw.githubusercontent.com/picrap/VirtualTreeView/master/Icon/VirtualTreeView.png" width=128 height=128 /></td>
-<td><h1>VirtualTreeView</h1></td>
-</tr>
-<tr><td>A WPF TreeView that actually supports virtualization.<br/>
-Works with .NET Framework 4.5.</td></tr>
-</table>
+# VirtualTreeView
+
+A virtualizing TreeView for .NET Framezork 4.6.2 and .NET 6
 
 ## How to use it
 
