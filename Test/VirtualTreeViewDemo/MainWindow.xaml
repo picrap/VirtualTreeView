@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:VirtualTreeViewDemo"
         xmlns:vtv="urn:VirtualTreeView"
         mc:Ignorable="d"
-        Title="VirtualTreeView" Height="768" Width="1024" Icon="VirtualTreeView.ico">
+        Title="VirtualTreeView" Height="768" Width="1024" Icon="/VirtualTreeView.ico">
 
     <Window.Resources>
         <Style x:Key="Header" TargetType="{x:Type TextBlock}" >

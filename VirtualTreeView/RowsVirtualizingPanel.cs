@@ -10,7 +10,6 @@ namespace VirtualTreeView
     using System.Windows;
     using System.Windows.Controls;
     using System.Windows.Controls.Primitives;
-    using System.Windows.Forms;
     using System.Windows.Interop;
     using System.Windows.Media;
 
@@ -374,6 +373,9 @@ namespace VirtualTreeView
 
         // See Ben Constable's series of posts at http://blogs.msdn.com/bencon/
 
+        // TODO: figure out to get that f##ing value with WPF
+        private static int MouseWheelScrollLines => 3;//SystemInformation.MouseWheelScrollLines;
+
         /// <summary>
         /// Gets or sets a <see cref="T:System.Windows.Controls.ScrollViewer" /> element that controls scrolling behavior.
         /// </summary>
@@ -456,7 +458,7 @@ namespace VirtualTreeView
         /// </summary>
         public void MouseWheelUp()
         {
-            SetVerticalOffset(VerticalOffset - ItemHeight * SystemInformation.MouseWheelScrollLines);
+            SetVerticalOffset(VerticalOffset - ItemHeight * MouseWheelScrollLines);
         }
 
         /// <summary>
@@ -464,7 +466,7 @@ namespace VirtualTreeView
         /// </summary>
         public void MouseWheelDown()
         {
-            SetVerticalOffset(VerticalOffset + ItemHeight * SystemInformation.MouseWheelScrollLines);
+            SetVerticalOffset(VerticalOffset + ItemHeight * MouseWheelScrollLines);
         }
 
         /// <summary>

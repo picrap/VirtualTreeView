@@ -27,17 +27,6 @@ using System.Windows.Markup;
 )]
 
 
-[assembly: AssemblyTitle("VirtualTreeView")]
-
-[assembly: AssemblyDescription("A WPF TreeView that actually supports virtualization. It is based on an ItemsControl with VirtualizingStackPanel.")]
-[assembly: AssemblyCompany("openstore.craponne.fr")]
-[assembly: AssemblyProduct("VirtualTreeView")]
-[assembly: AssemblyCopyright("MIT license http://opensource.org/licenses/mit-license.php")]
-[assembly: AssemblyTrademark("")]
-[assembly: AssemblyCulture("")]
-
-[assembly: AssemblyVersion("0.4")]
-
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
