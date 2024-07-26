@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net462;net6.0-windows</TargetFrameworks>
+		<TargetFrameworks>net462;net6.0-windows;net8.0-windows</TargetFrameworks>
 		<Nullable>disable</Nullable>
 		<UseWPF>true</UseWPF>
 		<LangVersion>10</LangVersion>
@@ -9,7 +9,7 @@
 		<SignAssembly>True</SignAssembly>
 		<AssemblyOriginatorKeyFile>Properties\VirtualTreeView.snk</AssemblyOriginatorKeyFile>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-		<Version>0.4.1</Version>
+		<Version>0.4.2</Version>
 		<Company>openstore.craponne.fr</Company>
 		<Description>A WPF TreeView that actually supports virtualization. It is based on an ItemsControl with VirtualizingStackPanel.</Description>
 		<PackageProjectUrl>https://github.com/picrap/VirtualTreeView</PackageProjectUrl>
@@ -17,10 +17,10 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<RepositoryUrl>https://github.com/picrap/VirtualTreeView.git</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<AssemblyVersion>0.4.1</AssemblyVersion>
+		<AssemblyVersion>0.4.2</AssemblyVersion>
 		<PackageTags>wpf;virtual;treeview</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<FileVersion>0.4.1</FileVersion>
+		<FileVersion>0.4.2</FileVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
