@@ -1,6 +1,6 @@
 # VirtualTreeView
 
-A virtualizing TreeView for .NET Framezork 4.6.2 and .NET 6
+A virtualizing TreeView for .NET Framezork 4.6.2, .NET 6 and .NET 8
 
 ## How to use it
 
